@@ -139,9 +139,6 @@ const nesvars = {
                     }
                 };
 
-                //nodes:[],
-                //queuefront:0 };
-
 
 async function createNES(romdataarraybuffer) {
     await setupaudio();
@@ -181,7 +178,6 @@ async function createNES(romdataarraybuffer) {
             console.log("file error");
             destroynes();
         } else {
-            //await setupaudio();
             nesvars.savesize = nesstate&~0x80000000;
             if(nesvars.running===undefined){
                 runnes();
@@ -198,101 +194,17 @@ function destroynes(){
 
 
 
-function generatefades(){
-    const fades = [];
-    const fadesampleslength = 10000;
-    //const totaldbdrop = 140;
-    //const totaldrop = totaldbdrop/20;
-    //const dropper = totaldrop/fadesampleslength;
-    
-    for(let i = 0;i<fadesampleslength;i++){
-        const percentage = i/fadesampleslength;
-        //const thistime = (-totaldrop)+(dropper*i);
-        //20*Math.log10(0.5) = -6.02
-        //   Math.log10(0.5) = -0.30
-        //      (10)**(-0.3) = 0.5
-        //fades.push( ((10)**(thistime)) );
-        fades.push( Math.pow(percentage,2) );
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const audio = {
-                framenumber:0,
-                mashedaudiobuffer:undefined,
-                mashtogether:20,
-                queueupto:-1,
-                playbackspeed:1
-            };
-
-function addsomeaudio(theaudio, howmanysamplesreally){
-    if(audio.framenumber===0){
-        audio.mashedaudiobuffer = nesvars.audiocontext.createBuffer(1, nesvars.audio.samplesperframe*audio.mashtogether, nesvars.audiocontext.sampleRate);
-    }
-
-    let float32array = audio.mashedaudiobuffer.getChannelData(0);
-    const firstone = audio.framenumber*nesvars.audio.samplesperframe;
-    for(let i = 0;i<nesvars.audio.samplesperframe;i++){
-        float32array[firstone+i] = (theaudio[i]*0.0078)-1;
-    }
-
-    if(audio.framenumber===(audio.mashtogether-1)){
-        audio.queueupto++;
-
-        //add hacky fades to beginning and end.?
-        for(let i=0;i<fadesampleslength;i++){
-            float32array[i]*=fades[i];
-            float32array[(nesvars.audio.samplesperframe*audio.mashtogether)-i]*=fades[i];
-        }
-
-
-        let node = nesvars.audiocontext.createBufferSource(0);
-
-        node.buffer = audio.mashedaudiobuffer;
-
-        let behind = audio.queueupto-nesvars.queuefront;
-        if(behind>0){
-            console.log("behind");
-            audio.playbackspeed*=(1+(behind*0.02));
-        }
-
-        node.playbackRate.value = (audio.playbackrate*audio.playbackspeed);
-
-        node.addEventListener("ended", () => {
-            node.disconnect(nesvars.audiocontext.destination);
-            playthebeast();
-        });
-
-        nesvars.nodes.push( node );
-
-        audio.framenumber = 0;
-    } else {
-        audio.framenumber++;
-    }
-}
-
-
-
 
 function frameadvance(){
     checkpads();
+
+    if(nesvars.CPP_romfileptr===undefined){
+        console.log("no rom file");
+        if(nesvars.running!==undefined){
+            runnes();
+        }
+        return;
+    }
 
     nesvars.framenumber++;
     const audioframes = Module.ccall("processNESFrame", "number", ["number"], [nesvars.p1input] );    
@@ -301,42 +213,18 @@ function frameadvance(){
     
     const rawaudio = Module.HEAPU8.subarray(nesvars.CPP_audiobufferptr, nesvars.CPP_audiobufferptr+nesvars.audio.samplesperframe);
 
-    const startquarter = nesvars.audio.writehead&0x1C00;
+    const startsection = nesvars.audio.writehead&nesvars.audio.ausectionmask;//  0x1C00;
     for(;nesvars.audio.readhead<audioframes;nesvars.audio.readhead+=nesvars.audio.advancer){
-        nesvars.audio.playbuffer[nesvars.audio.writehead] = (rawaudio[Math.floor(nesvars.audio.readhead)] * 0.01) - 1;
-        nesvars.audio.writehead=(nesvars.audio.writehead+1)&nesvars.audio.playbufmask;
+        nesvars.audio.aubuffer[nesvars.audio.writehead] = (rawaudio[Math.floor(nesvars.audio.readhead)] * 0.01) - 1;
+        nesvars.audio.writehead=(nesvars.audio.writehead+1)&nesvars.audio.aubufmask;
     }
     nesvars.audio.readhead-=audioframes;
 
-    if((nesvars.audio.writehead&0x1C00)!==startquarter){
-        const quarter = nesvars.audio.playbuffer.subarray(startquarter,startquarter+0x400);
-        nesvars.audio.nesnode.port.postMessage(quarter);
+    if((nesvars.audio.writehead&nesvars.audio.ausectionmask)!==startsection){
+        const section = nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength);//0x400
+        nesvars.audio.nesnode.port.postMessage(section);
     }
-
-
-
-    /*addsomeaudio(audiosamples, audioframes);
-
-    if(nesvars.playing!==true){
-        nesvars.playing=true;
-        playthebeast();
-    }*/
 }
-
-
-playthebeast = ()=>{
-    if(nesvars.nodes[nesvars.queuefront]===undefined){
-        nesvars.playing=false;
-        console.log("ahead. audio not ready.");
-        audio.playbackspeed*=0.999;
-        return;
-    }
-    let node = nesvars.nodes[nesvars.queuefront];
-    delete nesvars.nodes[nesvars.queuefront++];
-    node.connect(nesvars.audiocontext.destination);
-    node.start(0);
-}
-
 
 
 
@@ -358,13 +246,31 @@ async function setupaudio() {
     }
     nesvars.audio.ctx = new AudioContext();
 
+    const samplespreframe = nesvars.audio.ctx.sampleRate/60;
+    nesvars.audio.aubufsectionlength = 1;
+    while(samplespreframe>nesvars.audio.aubufsectionlength){
+        nesvars.audio.aubufsectionlength*=2;
+    }
 
-    nesvars.audio.playbuflength = 4096;
-    nesvars.audio.playbufmask = nesvars.audio.playbuflength-1;
-    nesvars.audio.playbuffer = new Float32Array(nesvars.audio.playbuflength);
+    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*2;
+    nesvars.audio.aubufmask = nesvars.audio.fullaubuflength-1;
+    nesvars.audio.ausectionmask = nesvars.audio.aubufmask^(nesvars.audio.aubufsectionlength-1);
+
+    nesvars.audio.aubuffer = new Float32Array(nesvars.audio.fullaubuflength);
     nesvars.audio.readhead = 0;
     nesvars.audio.baseadvancer = (nesvars.audio.nessamplerate/nesvars.audio.ctx.sampleRate);
-    nesvars.audio.advancer = nesvars.audio.baseadvancer * 1.05;
+    const speedmultiplier = 1.035;
+    nesvars.audio.advancer = nesvars.audio.baseadvancer * speedmultiplier;
+
+    if(nesvars.audio.ctx.audioWorklet===undefined){
+        console.log("audioWorklet unsupported. https issues??")
+        nesvars.audio.nesnode = { port:{postMessage:function(buf){
+            //console.log(buf);
+            //visualiser?
+        }}};
+        debugger;
+        return;
+    }
 
     await nesvars.audio.ctx.audioWorklet.addModule("nesaudio.js");
 
@@ -381,20 +287,20 @@ async function setupaudio() {
         }
     };*/
 
-    nesvars.audio.nesnode.connect(nesvars.audio.ctx.destination);
+    nesvars.audio.hipassnode = new BiquadFilterNode(nesvars.audio.ctx);
+    nesvars.audio.hipassnode.type = "highpass";
+    nesvars.audio.hipassnode.frequency.value = 25;
+    nesvars.audio.hipassnode.Q.value = 1;
+    //nesvars.audio.hipassnode.gain
+
+    nesvars.audio.gainnode = new GainNode(nesvars.audio.ctx);
+    nesvars.audio.gainnode.gain.value = 0;
+
+    nesvars.audio.nesnode
+        .connect(nesvars.audio.hipassnode)
+        .connect(nesvars.audio.gainnode)
+        .connect(nesvars.audio.ctx.destination);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -439,7 +345,16 @@ function setinput(key,pressed){
         "ArrowUp":4,
         "ArrowDown":5,
         "ArrowLeft":6,
-        "ArrowRight":7
+        "ArrowRight":7,
+
+        " ":0,//space, modern pc layout
+        "Enter":1,
+        "q":2,
+        "e":3,
+        "w":4,
+        "s":5,
+        "a":6,
+        "d":7,
     }[key];
     if(index===undefined){
         return false;
@@ -525,13 +440,11 @@ const passedromfile = async(event) => {
 }
 
 const runnes = (event) => {
-    if(nesvars.CPP_romfileptr===undefined){
-        console.log("no rom file");
-        return;
-    }
     if(nesvars.running===undefined){
         nesvars.running = setInterval(frameadvance, 1000/60);
+        nesvars.audio.gainnode.gain.value = 1;//a variable?
     } else {
+        nesvars.audio.gainnode.gain.value = 0;//a variable?
         clearInterval(nesvars.running);
         nesvars.running = undefined;
     }
