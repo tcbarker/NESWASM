@@ -127,15 +127,17 @@ const colours = new Uint8Array([
 
 
 const nesvars = {
-                    pixels:{
+                    buffersizes:{
                         screenarraysize:(256*240*4),
-                        palettearraysize:(64*8*4)
+                        palettearraysize:(64*8*4),
+                        samplesperframe:29781//-0.5
                     },
+                    refresh:60,
                     p1input:0,
                     gamepads:{},
                     audio:{
-                        samplesperframe:29781,
-                        nessamplerate:1786830
+                        muted:false,
+                        usergain:1
                     }
                 };
 
@@ -147,15 +149,15 @@ async function createNES(romdataarraybuffer) {
         nesvars.ctx = nesvars.canvas.getContext("2d");
         nesvars.imagedata = nesvars.ctx.createImageData(256,240);
 
-        nesvars.CPP_screenptr = Module._malloc(nesvars.pixels.screenarraysize);
-        Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.pixels.screenarraysize).fill(255);
+        nesvars.CPP_screenptr = Module._malloc(nesvars.buffersizes.screenarraysize);
+        Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.buffersizes.screenarraysize).fill(255);
         
-        nesvars.CPP_palptr = Module._malloc(nesvars.pixels.palettearraysize);
-        let palview = Module.HEAPU8.subarray(nesvars.CPP_palptr, nesvars.CPP_palptr+nesvars.pixels.palettearraysize);
+        nesvars.CPP_palptr = Module._malloc(nesvars.buffersizes.palettearraysize);
+        let palview = Module.HEAPU8.subarray(nesvars.CPP_palptr, nesvars.CPP_palptr+nesvars.buffersizes.palettearraysize);
         palview.set(colours);
         //other emphasis bit variations? todo
 
-        nesvars.CPP_audiobufferptr = Module._malloc(nesvars.audio.samplesperframe);
+        nesvars.CPP_audiobufferptr = Module._malloc(nesvars.buffersizes.samplesperframe);
         nesvars.CPP_sramptr = Module._malloc(1024*8);
     }
 
@@ -208,21 +210,22 @@ function frameadvance(){
 
     nesvars.framenumber++;
     const audioframes = Module.ccall("processNESFrame", "number", ["number"], [nesvars.p1input] );    
-    nesvars.imagedata.data.set(Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.pixels.screenarraysize));
+    nesvars.imagedata.data.set(Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.buffersizes.screenarraysize));
     nesvars.ctx.putImageData(nesvars.imagedata,0,0);
     
-    const rawaudio = Module.HEAPU8.subarray(nesvars.CPP_audiobufferptr, nesvars.CPP_audiobufferptr+nesvars.audio.samplesperframe);
+    const rawaudio = Module.HEAPU8.subarray(nesvars.CPP_audiobufferptr, nesvars.CPP_audiobufferptr+nesvars.buffersizes.samplesperframe);
 
-    const startsection = nesvars.audio.writehead&nesvars.audio.ausectionmask;//  0x1C00;
+    let startsection = nesvars.audio.writehead&nesvars.audio.ausectionmask;
     for(;nesvars.audio.readhead<audioframes;nesvars.audio.readhead+=nesvars.audio.advancer){
         nesvars.audio.aubuffer[nesvars.audio.writehead] = (rawaudio[Math.floor(nesvars.audio.readhead)] * 0.01) - 1;
         nesvars.audio.writehead=(nesvars.audio.writehead+1)&nesvars.audio.aubufmask;
     }
     nesvars.audio.readhead-=audioframes;
 
-    if((nesvars.audio.writehead&nesvars.audio.ausectionmask)!==startsection){
-        const section = nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength);//0x400
+    while(startsection!==(nesvars.audio.writehead&nesvars.audio.ausectionmask)){
+        const section = nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength);
         nesvars.audio.nesnode.port.postMessage(section);
+        startsection = (startsection+nesvars.audio.aubufsectionlength)&nesvars.audio.ausectionmask;
     }
 }
 
@@ -246,24 +249,28 @@ async function setupaudio() {
     }
     nesvars.audio.ctx = new AudioContext();
 
-    const samplespreframe = nesvars.audio.ctx.sampleRate/60;
+    nesvars.audio.nessamplerate = (nesvars.buffersizes.samplesperframe-0.5)*nesvars.refresh;
+    const samplespreframe = nesvars.audio.ctx.sampleRate/nesvars.refresh;
     nesvars.audio.aubufsectionlength = 1;
     while(samplespreframe>nesvars.audio.aubufsectionlength){
         nesvars.audio.aubufsectionlength*=2;
     }
 
-    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*2;
+    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*4;//multiplier affects how slow it can can go (for low cpu) before audio will settle running half speed.
+
     nesvars.audio.aubufmask = nesvars.audio.fullaubuflength-1;
     nesvars.audio.ausectionmask = nesvars.audio.aubufmask^(nesvars.audio.aubufsectionlength-1);
 
     nesvars.audio.aubuffer = new Float32Array(nesvars.audio.fullaubuflength);
     nesvars.audio.readhead = 0;
     nesvars.audio.baseadvancer = (nesvars.audio.nessamplerate/nesvars.audio.ctx.sampleRate);
-    const speedmultiplier = 1.035;
-    nesvars.audio.advancer = nesvars.audio.baseadvancer * speedmultiplier;
+    nesvars.audio.speedmultiplier = 1.0315;
+    nesvars.audio.advancer = nesvars.audio.baseadvancer * nesvars.audio.speedmultiplier;
 
     if(nesvars.audio.ctx.audioWorklet===undefined){
-        console.log("audioWorklet unsupported. https issues??")
+        const message = "audioWorklet unsupported. https issues??"
+        screenlog(message);
+        console.log(message);
         nesvars.audio.nesnode = { port:{postMessage:function(buf){
             //console.log(buf);
             //visualiser?
@@ -276,16 +283,26 @@ async function setupaudio() {
 
     nesvars.audio.nesnode = new AudioWorkletNode(
         nesvars.audio.ctx,
-        "nesaudio",
+        "nesaudio", {
+            processorOptions:{
+                sectionsize: nesvars.audio.aubufsectionlength
+            }
+        }
     );
 
-    /*nesvars.audio.nesnode.port.onmessage = (e) => {
-        if(e.data===true){
-            //nesvars.audio.advancer = nesvars.audio.baseadvancer * 1.05;
-        } else {
-            //nesvars.audio.advancer = nesvars.audio.baseadvancer * 0.95;
+    let missedcount = 0;
+    //could ignore for first x frames??
+    nesvars.audio.nesnode.port.onmessage = (e) => {//delay in recieving?
+        if(e.data<0){
+            missedcount++;
+            screenlog("missed:"+missedcount,false,true);
+            console.log("missed:"+missedcount);
         }
-    };*/
+        //console.log(nesvars.framenumber+" : "+e.data+" aimv for 2?? "+nesvars.audio.speedmultiplier);
+        //if e.data = zero, we need to slow down (also if it is 1, if we're aiming for 2)
+        nesvars.audio.speedmultiplier *= (1 + (  Math.pow(e.data - 2,3) *0.00001));
+        nesvars.audio.advancer = nesvars.audio.baseadvancer * nesvars.audio.speedmultiplier;
+    };
 
     nesvars.audio.hipassnode = new BiquadFilterNode(nesvars.audio.ctx);
     nesvars.audio.hipassnode.type = "highpass";
@@ -293,16 +310,34 @@ async function setupaudio() {
     nesvars.audio.hipassnode.Q.value = 1;
     //nesvars.audio.hipassnode.gain
 
+    /*nesvars.audio.lowpassnode = new BiquadFilterNode(nesvars.audio.ctx);
+    nesvars.audio.lowpassnode.type = "lowpass";
+    nesvars.audio.lowpassnode.frequency.value = 10000;
+    nesvars.audio.lowpassnode.Q.value = 1;*/
+
     nesvars.audio.gainnode = new GainNode(nesvars.audio.ctx);
     nesvars.audio.gainnode.gain.value = 0;
 
     nesvars.audio.nesnode
         .connect(nesvars.audio.hipassnode)
+        //.connect(nesvars.audio.lowpassnode)
         .connect(nesvars.audio.gainnode)
         .connect(nesvars.audio.ctx.destination);
 }
 
 
+function setgain(gain) {
+    if(gain!==undefined){
+        nesvars.audio.usergain = gain;
+    }
+    if(nesvars.audio.gainnode!==undefined){
+        if(nesvars.audio.muted===true){
+            nesvars.audio.gainnode.gain.value = 0;
+        } else {
+            nesvars.audio.gainnode.gain.value = nesvars.audio.usergain;
+        }
+    }
+}
 
 
 
@@ -391,6 +426,10 @@ function registercontrollers(){
             if (event.defaultPrevented) {
                 return;
             }
+            if(event.key==="Escape"){
+                runnes();
+                return;
+            }
             if(setinput(event.key,true)){
                 event.preventDefault();
             }
@@ -441,13 +480,17 @@ const passedromfile = async(event) => {
 
 const runnes = (event) => {
     if(nesvars.running===undefined){
-        nesvars.running = setInterval(frameadvance, 1000/60);
-        nesvars.audio.gainnode.gain.value = 1;//a variable?
+        if(nesvars.audio.nesnode!==undefined){
+            nesvars.audio.nesnode.port.postMessage(null);
+        }
+        nesvars.running = setInterval(frameadvance, 1000/nesvars.refresh);
+        nesvars.audio.muted = false;
     } else {
-        nesvars.audio.gainnode.gain.value = 0;//a variable?
         clearInterval(nesvars.running);
         nesvars.running = undefined;
+        nesvars.audio.muted = true;
     }
+    setgain();
 }
 
 
@@ -456,3 +499,54 @@ const neselement = document.querySelector("body");
 nesvars.canvas = addcanvas(neselement,256,240);
 addfileselect(neselement,passedromfile);
 addbutton(neselement,"Start/Pause",runnes);
+
+
+
+
+
+function windowactivething(){
+
+    let hidden, visibilityChange; 
+    if (typeof document.hidden !== "undefined") {
+        hidden = "hidden";
+        visibilityChange = "visibilitychange";
+    } else if (typeof document.mozHidden !== "undefined") {
+        hidden = "mozHidden";
+        visibilityChange = "mozvisibilitychange";
+    } else if (typeof document.msHidden !== "undefined") {
+        hidden = "msHidden";
+        visibilityChange = "msvisibilitychange";
+    } else if (typeof document.webkitHidden !== "undefined") {
+        hidden = "webkitHidden";
+        visibilityChange = "webkitvisibilitychange";
+    }
+    
+    
+    handleVisibilityChange = (event) => {
+        //console.log(event);
+        if (document[hidden]) {
+            //console.log("hidey");
+        } else {
+            //console.log("show");
+        }
+    };
+    
+    document.addEventListener(visibilityChange, handleVisibilityChange  );
+}
+windowactivething();//don't think this even works..
+
+
+
+
+
+function screenlog(message, tojson = false, clear = false){
+    if(tojson===true){
+        message = JSON.stringify(message);
+    }
+    const el = document.getElementById("tommy");
+    if(clear){
+        el.innerText = "";
+    }
+    el.innerText+=message;
+}
+
