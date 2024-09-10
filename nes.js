@@ -137,7 +137,8 @@ const nesvars = {
                     gamepads:{},
                     audio:{
                         muted:false,
-                        usergain:1
+                        usergain:1,
+                        lateness:null
                     }
                 };
 
@@ -215,6 +216,39 @@ function frameadvance(){
     
     const rawaudio = Module.HEAPU8.subarray(nesvars.CPP_audiobufferptr, nesvars.CPP_audiobufferptr+nesvars.buffersizes.samplesperframe);
 
+
+    if(nesvars.audio.lateness!==null){
+        if(nesvars.audio.lateness>9){
+            console.log(">9"+nesvars.audio.lateness);
+        }
+        console.log("lateness "+nesvars.audio.lateness);
+        if(nesvars.audio.lateness<-1){
+            let extreme = 1+(nesvars.audio.lateness*0.05);
+            if(extreme<0.001){
+                extreme = 0.001;
+            }
+            nesvars.audio.advancer*=extreme;
+        } else {
+            if(nesvars.audio.lateness<0){//need to slow down
+                nesvars.audio.lateness = -1;
+            }
+            const sectionsinfuture = 1000;//1000 is good?
+            const samplesdifferent = (nesvars.audio.lateness-1)*nesvars.audio.aubufsectionlength;//hover at 1?
+            const samplesinfuture = sectionsinfuture*nesvars.audio.aubufsectionlength;
+            //over the space of samplesinfuture, at current rate, we want to adjust rate to do x samples
+            const xsamples = samplesinfuture-samplesdifferent;
+            //how many nes samples is samplesinfuture, at current rate?
+            const nessamplesinfuture = samplesinfuture*nesvars.audio.advancer;
+            //what do we change currentrate to to do xsamples in that many nessamples?
+            //nesvars.audio.advancer = nessamplesinfuture/xsamples;
+            nesvars.audio.advancer = nessamplesinfuture/xsamples;
+        }
+        nesvars.audio.lateness = null;
+        //console.log(nesvars.audio.advancer);
+    }
+
+
+
     let startsection = nesvars.audio.writehead&nesvars.audio.ausectionmask;
     for(;nesvars.audio.readhead<audioframes;nesvars.audio.readhead+=nesvars.audio.advancer){
         nesvars.audio.aubuffer[nesvars.audio.writehead] = (rawaudio[Math.floor(nesvars.audio.readhead)] * 0.01) - 1;
@@ -237,6 +271,9 @@ function frameadvance(){
 
 
 async function setupaudio() {
+
+    //refactor todo - destroy/create
+
     if(nesvars.audio.ctx!==undefined){
         return;
     }
@@ -251,29 +288,26 @@ async function setupaudio() {
 
     nesvars.audio.nessamplerate = (nesvars.buffersizes.samplesperframe-0.5)*nesvars.refresh;
     const samplespreframe = nesvars.audio.ctx.sampleRate/nesvars.refresh;
-    nesvars.audio.aubufsectionlength = 1;
+    const minbuffersizefromaudionode = 128;
+    nesvars.audio.aubufsectionlength = minbuffersizefromaudionode;
     while(samplespreframe>nesvars.audio.aubufsectionlength){
         nesvars.audio.aubufsectionlength*=2;
     }
 
-    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*4;//multiplier affects how slow it can can go (for low cpu) before audio will settle running half speed.
+    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*128;//todo.. multiplier affects how slow it can can go (for low cpu) before audio will settle running fraction of speed.
 
     nesvars.audio.aubufmask = nesvars.audio.fullaubuflength-1;
     nesvars.audio.ausectionmask = nesvars.audio.aubufmask^(nesvars.audio.aubufsectionlength-1);
 
     nesvars.audio.aubuffer = new Float32Array(nesvars.audio.fullaubuflength);
     nesvars.audio.readhead = 0;
-    nesvars.audio.baseadvancer = (nesvars.audio.nessamplerate/nesvars.audio.ctx.sampleRate);
-    nesvars.audio.speedmultiplier = 1.0315;
-    nesvars.audio.advancer = nesvars.audio.baseadvancer * nesvars.audio.speedmultiplier;
+    nesvars.audio.advancer = (nesvars.audio.nessamplerate/nesvars.audio.ctx.sampleRate) * 1.0315;//why? who knows.
 
     if(nesvars.audio.ctx.audioWorklet===undefined){
         const message = "audioWorklet unsupported. https issues??"
         screenlog(message);
-        console.log(message);
         nesvars.audio.nesnode = { port:{postMessage:function(buf){
-            //console.log(buf);
-            //visualiser?
+            //use the crappy old one instead?
         }}};
         debugger;
         return;
@@ -296,12 +330,14 @@ async function setupaudio() {
         if(e.data<0){
             missedcount++;
             screenlog("missed:"+missedcount,false,true);
-            console.log("missed:"+missedcount);
         }
-        //console.log(nesvars.framenumber+" : "+e.data+" aimv for 2?? "+nesvars.audio.speedmultiplier);
-        //if e.data = zero, we need to slow down (also if it is 1, if we're aiming for 2)
-        nesvars.audio.speedmultiplier *= (1 + (  Math.pow(e.data - 2,3) *0.00001));
-        nesvars.audio.advancer = nesvars.audio.baseadvancer * nesvars.audio.speedmultiplier;
+        if(e.data===0){
+            return;
+        }
+        if( (nesvars.audio.lateness===null) || (e.data<nesvars.audio.lateness) ){
+            nesvars.audio.lateness = e.data;
+        }
+        return;
     };
 
     nesvars.audio.hipassnode = new BiquadFilterNode(nesvars.audio.ctx);
@@ -317,6 +353,10 @@ async function setupaudio() {
 
     nesvars.audio.gainnode = new GainNode(nesvars.audio.ctx);
     nesvars.audio.gainnode.gain.value = 0;
+
+    nesvars.audio.analysernode = new AnalyserNode(nesvars.audio.ctx);
+    //todo..
+
 
     nesvars.audio.nesnode
         .connect(nesvars.audio.hipassnode)
@@ -483,7 +523,7 @@ const runnes = (event) => {
         if(nesvars.audio.nesnode!==undefined){
             nesvars.audio.nesnode.port.postMessage(null);
         }
-        nesvars.running = setInterval(frameadvance, 1000/nesvars.refresh);
+        nesvars.running = setInterval(frameadvance, 1000/(nesvars.refresh));
         nesvars.audio.muted = false;
     } else {
         clearInterval(nesvars.running);
