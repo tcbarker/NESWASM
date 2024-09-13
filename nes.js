@@ -221,7 +221,7 @@ function frameadvance(){
         if(offby<0){//only slow down to fill buffer, don't speed up if too much buffer. or maybe do if it gets ridiculous.. todo.
             nesvars.audio.advancer *= 1+(( offby )*0.001);//arbitrary bullshit. needs to relate to framerate. todo.
         }
-      
+    }
 
 
 
