@@ -137,8 +137,7 @@ const nesvars = {
                     gamepads:{},
                     audio:{
                         muted:false,
-                        usergain:1,
-                        lateness:null
+                        usergain:1
                     }
                 };
 
@@ -168,7 +167,7 @@ async function createNES(romdataarraybuffer) {
     }
 
     if(nesvars.CPP_romfileptr===undefined){
-        nesvars.framenumber = 0;
+        nesvars.framenumber = -1;
         nesvars.CPP_rombytecount = romdataarraybuffer.byteLength;
         nesvars.CPP_romfileptr = Module._malloc(nesvars.CPP_rombytecount);
         let romview = Module.HEAPU8.subarray(nesvars.CPP_romfileptr, nesvars.CPP_romfileptr+nesvars.CPP_rombytecount);
@@ -208,44 +207,21 @@ function frameadvance(){
         }
         return;
     }
-
-    nesvars.framenumber++;
-    const audioframes = Module.ccall("processNESFrame", "number", ["number"], [nesvars.p1input] );    
-    nesvars.imagedata.data.set(Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.buffersizes.screenarraysize));
-    nesvars.ctx.putImageData(nesvars.imagedata,0,0);
     
+    const audioframes = Module.ccall("processNESFrame", "number", ["number"], [nesvars.p1input] );    
     const rawaudio = Module.HEAPU8.subarray(nesvars.CPP_audiobufferptr, nesvars.CPP_audiobufferptr+nesvars.buffersizes.samplesperframe);
 
 
-    if(nesvars.audio.lateness!==null){
-        if(nesvars.audio.lateness>9){
-            console.log(">9"+nesvars.audio.lateness);
+    const oddeven = (nesvars.framenumber)&0x01;
+    if(nesvars.audio.nesnodemessage[oddeven].frame===nesvars.framenumber){
+        const otherframe = 1-oddeven;
+        nesvars.audio.advancer = (nesvars.buffersizes.samplesperframe-0.5)*64 / nesvars.audio.deltasum;
+
+        const offby = nesvars.audio.nesnodemessage[oddeven].missedsections-6;
+        if(offby<0){//only slow down to fill buffer, don't speed up if too much buffer. or maybe do if it gets ridiculous.. todo.
+            nesvars.audio.advancer *= 1+(( offby )*0.001);//arbitrary bullshit. needs to relate to framerate. todo.
         }
-        console.log("lateness "+nesvars.audio.lateness);
-        if(nesvars.audio.lateness<-1){
-            let extreme = 1+(nesvars.audio.lateness*0.05);
-            if(extreme<0.001){
-                extreme = 0.001;
-            }
-            nesvars.audio.advancer*=extreme;
-        } else {
-            if(nesvars.audio.lateness<0){//need to slow down
-                nesvars.audio.lateness = -1;
-            }
-            const sectionsinfuture = 1000;//1000 is good?
-            const samplesdifferent = (nesvars.audio.lateness-1)*nesvars.audio.aubufsectionlength;//hover at 1?
-            const samplesinfuture = sectionsinfuture*nesvars.audio.aubufsectionlength;
-            //over the space of samplesinfuture, at current rate, we want to adjust rate to do x samples
-            const xsamples = samplesinfuture-samplesdifferent;
-            //how many nes samples is samplesinfuture, at current rate?
-            const nessamplesinfuture = samplesinfuture*nesvars.audio.advancer;
-            //what do we change currentrate to to do xsamples in that many nessamples?
-            //nesvars.audio.advancer = nessamplesinfuture/xsamples;
-            nesvars.audio.advancer = nessamplesinfuture/xsamples;
-        }
-        nesvars.audio.lateness = null;
-        //console.log(nesvars.audio.advancer);
-    }
+      
 
 
 
@@ -256,16 +232,20 @@ function frameadvance(){
     }
     nesvars.audio.readhead-=audioframes;
 
-    while(startsection!==(nesvars.audio.writehead&nesvars.audio.ausectionmask)){
-        const section = nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength);
-        nesvars.audio.nesnode.port.postMessage(section);
-        startsection = (startsection+nesvars.audio.aubufsectionlength)&nesvars.audio.ausectionmask;
+    let sectionstosend = [];
+    for(    ;
+            startsection!==(nesvars.audio.writehead&nesvars.audio.ausectionmask);
+            startsection = (startsection+nesvars.audio.aubufsectionlength)&nesvars.audio.ausectionmask
+        ){
+        sectionstosend.push( nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength) );
     }
+    nesvars.framenumber++;
+    nesvars.audio.nesnode.port.postMessage( {frame:nesvars.framenumber, sections:sectionstosend} );
+
+
+    nesvars.imagedata.data.set(Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.buffersizes.screenarraysize));
+    nesvars.ctx.putImageData(nesvars.imagedata,0,0);
 }
-
-
-
-
 
 
 
@@ -294,7 +274,7 @@ async function setupaudio() {
         nesvars.audio.aubufsectionlength*=2;
     }
 
-    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*128;//todo.. multiplier affects how slow it can can go (for low cpu) before audio will settle running fraction of speed.
+    nesvars.audio.fullaubuflength = nesvars.audio.aubufsectionlength*16;//todo.. multiplier affects how slow it can can go (for low cpu) before audio will settle running fraction of speed.
 
     nesvars.audio.aubufmask = nesvars.audio.fullaubuflength-1;
     nesvars.audio.ausectionmask = nesvars.audio.aubufmask^(nesvars.audio.aubufsectionlength-1);
@@ -325,19 +305,39 @@ async function setupaudio() {
     );
 
     let missedcount = 0;
-    //could ignore for first x frames??
-    nesvars.audio.nesnode.port.onmessage = (e) => {//delay in recieving?
-        if(e.data<0){
+
+    const bitsformask = 7;//7=64?
+    nesvars.audio.deltabitstoshiftby = (-1) + bitsformask;
+    nesvars.audio.deltamask = (1<<nesvars.audio.deltabitstoshiftby)-1;
+    nesvars.audio.deltaindex = 0;
+    nesvars.audio.deltas = [];
+    for(let i =0;i<(nesvars.audio.deltamask+1);i++){
+        nesvars.audio.deltas.push( Math.floor(samplespreframe) );
+    }
+    nesvars.audio.deltasum = Math.floor(samplespreframe)*(nesvars.audio.deltamask+1);
+    
+    nesvars.audio.deltaaverage = Math.floor(samplespreframe);;
+    nesvars.audio.nesnodemessage = { 0:{}, 1:{} };
+    //let thing = { frame:-1, samplesdelta:0, ahead:0, missedsections:0, samplesofcurrentleft:nesvars.audio.aubufsectionlength };
+
+    nesvars.audio.nesnode.port.onmessage = (e) => {
+        //console.log(e.data.missedsections);
+
+        if(e.data.missedsections<0){
             missedcount++;
             screenlog("missed:"+missedcount,false,true);
         }
-        if(e.data===0){
-            return;
-        }
-        if( (nesvars.audio.lateness===null) || (e.data<nesvars.audio.lateness) ){
-            nesvars.audio.lateness = e.data;
-        }
-        return;
+
+        const oddeven = (e.data.frame)&0x01;
+        nesvars.audio.nesnodemessage[oddeven] = e.data;//todo - elsewhere?
+
+        nesvars.audio.deltasum-=nesvars.audio.deltas[nesvars.audio.deltaindex];
+        nesvars.audio.deltas[nesvars.audio.deltaindex] = e.data.samplesdelta;
+        nesvars.audio.deltasum+=nesvars.audio.deltas[nesvars.audio.deltaindex];
+        nesvars.audio.deltaindex = (nesvars.audio.deltaindex+1)&nesvars.audio.deltamask;
+        
+        nesvars.audio.deltaaverage = nesvars.audio.deltasum>>nesvars.audio.deltabitstoshiftby;
+
     };
 
     nesvars.audio.hipassnode = new BiquadFilterNode(nesvars.audio.ctx);
@@ -355,14 +355,59 @@ async function setupaudio() {
     nesvars.audio.gainnode.gain.value = 0;
 
     nesvars.audio.analysernode = new AnalyserNode(nesvars.audio.ctx);
-    //todo..
+    nesvars.audio.analysernode.fftSize = 2048;
+
+    nesvars.bufferLength = nesvars.audio.analysernode.frequencyBinCount;
+    nesvars.dataArray = new Uint8Array(nesvars.bufferLength);
+    nesvars.audio.analysernode.getByteTimeDomainData(nesvars.dataArray);
+
+    nesvars.osccanvas = document.getElementById("oscilloscope");
+    nesvars.osccanvasctx = canvas.getContext("2d");
+
 
 
     nesvars.audio.nesnode
         .connect(nesvars.audio.hipassnode)
         //.connect(nesvars.audio.lowpassnode)
+        .connect(nesvars.audio.analysernode)
         .connect(nesvars.audio.gainnode)
         .connect(nesvars.audio.ctx.destination);
+
+        drawfft();
+}
+
+
+
+function drawfft(){
+    requestAnimationFrame(drawfft);
+
+    nesvars.audio.analysernode.getByteTimeDomainData(nesvars.dataArray);
+
+    nesvars.osccanvasctx.fillStyle = "rgb(200 200 200)";
+    nesvars.osccanvasctx.fillRect(0, 0, nesvars.osccanvas.width, nesvars.osccanvas.height);
+
+    nesvars.osccanvasctx.lineWidth = 2;
+    nesvars.osccanvasctx.strokeStyle = "rgb(0 0 0)";
+
+    nesvars.osccanvasctx.beginPath();
+
+    const sliceWidth = (nesvars.osccanvas.width * 1.0) / nesvars.bufferLength;
+    let x = 0;
+
+    for (let i = 0; i < nesvars.bufferLength; i++) {
+        const v = nesvars.dataArray[i] / 128.0;
+        const y = (v * nesvars.osccanvas.height) / 2;
+
+        if (i === 0) {
+            nesvars.osccanvasctx.moveTo(x, y);
+        } else {
+            nesvars.osccanvasctx.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+    }
+    nesvars.osccanvasctx.lineTo(nesvars.osccanvas.width, nesvars.osccanvas.height / 2);
+    nesvars.osccanvasctx.stroke();
 }
 
 
@@ -520,9 +565,7 @@ const passedromfile = async(event) => {
 
 const runnes = (event) => {
     if(nesvars.running===undefined){
-        if(nesvars.audio.nesnode!==undefined){
-            nesvars.audio.nesnode.port.postMessage(null);
-        }
+        //maybe reset something timing related.. todo.
         nesvars.running = setInterval(frameadvance, 1000/(nesvars.refresh));
         nesvars.audio.muted = false;
     } else {
