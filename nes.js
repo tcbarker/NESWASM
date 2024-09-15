@@ -1,3 +1,9 @@
+import touchcon from './touchcon.js'
+
+const searchParams = new URLSearchParams(window.location.search);
+const debug = searchParams.has("debug");
+
+
 
 
 
@@ -58,83 +64,81 @@ function addcanvas(addtoelement=null, x, y ){
 
 
 const colours = new Uint8Array([
-    84, 84, 84,0,
-    0, 30, 116,0,
-    8, 16, 144,0,
-    48, 0, 136,0,
-    68, 0, 100,0,
-    92, 0, 48,0,
-    84, 4, 0,0,
-    60, 24, 0,0,
-    32, 42, 0,0,
-    8, 58, 0,0,
-    0, 64, 0,0,
-    0, 60, 0,0,
-    0, 50, 60,0,
-    0, 0, 0,0,
-    0, 0, 0,0,
-    0, 0, 0,0,
-    152, 150, 152,0,
-    8, 76, 196,0,
-    48, 50, 236,0,
-    92, 30, 228,0,
-    136, 20, 176,0,
-    160, 20, 100,0,
-    152, 34, 32,0,
-    120, 60, 0,0,
-    84, 90, 0,0,
-    40, 114, 0,0,
-    8, 124, 0,0,
-    0, 118, 40,0,
-    0, 102, 120,0,
-    0, 0, 0,0,
-    0, 0, 0,0,
-    0, 0, 0,0,
-    236, 238, 236,0,
-    76, 154, 236,0,
-    120, 124, 236,0,
-    176, 98, 236,0,
-    228, 84, 236,0,
-    236, 88, 180,0,
-    236, 106, 100,0,
-    212, 136, 32,0,
-    160, 170, 0,0,
-    116, 196, 0,0,
-    76, 208, 32,0,
-    56, 204, 108,0,
-    56, 180, 204,0,
-    60, 60, 60,0,
-    0, 0, 0,0,
-    0, 0, 0,0,
-    236, 238, 236,0,
-    168, 204, 236,0,
-    188, 188, 236,0,
-    212, 178, 236,0,
-    236, 174, 236,0,
-    236, 174, 212,0,
-    236, 180, 176,0,
-    228, 196, 144,0,
-    204, 210, 120,0,
-    180, 222, 120,0,
-    168, 226, 144,0,
-    152, 226, 180,0,
-    160, 214, 228,0,
-    160, 162, 160,0,
-    0, 0, 0,0,
-    0, 0, 0,0
+    84, 84, 84, 255,
+    0, 30, 116, 255,
+    8, 16, 144, 255,
+    48, 0, 136, 255,
+    68, 0, 100, 255,
+    92, 0, 48, 255,
+    84, 4, 0, 255,
+    60, 24, 0, 255,
+    32, 42, 0, 255,
+    8, 58, 0, 255,
+    0, 64, 0, 255,
+    0, 60, 0, 255,
+    0, 50, 60, 255,
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    152, 150, 152, 255,
+    8, 76, 196, 255,
+    48, 50, 236, 255,
+    92, 30, 228, 255,
+    136, 20, 176, 255,
+    160, 20, 100, 255,
+    152, 34, 32, 255,
+    120, 60, 0, 255,
+    84, 90, 0, 255,
+    40, 114, 0, 255,
+    8, 124, 0, 255,
+    0, 118, 40, 255,
+    0, 102, 120, 255,
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    236, 238, 236, 255,
+    76, 154, 236, 255,
+    120, 124, 236, 255,
+    176, 98, 236, 255,
+    228, 84, 236, 255,
+    236, 88, 180, 255,
+    236, 106, 100, 255,
+    212, 136, 32, 255,
+    160, 170, 0, 255,
+    116, 196, 0, 255,
+    76, 208, 32, 255,
+    56, 204, 108, 255,
+    56, 180, 204, 255,
+    60, 60, 60, 255,
+    0, 0, 0, 255,
+    0, 0, 0, 255,
+    236, 238, 236, 255,
+    168, 204, 236, 255,
+    188, 188, 236, 255,
+    212, 178, 236, 255,
+    236, 174, 236, 255,
+    236, 174, 212, 255,
+    236, 180, 176, 255,
+    228, 196, 144, 255,
+    204, 210, 120, 255,
+    180, 222, 120, 255,
+    168, 226, 144, 255,
+    152, 226, 180, 255,
+    160, 214, 228, 255,
+    160, 162, 160, 255,
+    0, 0, 0, 255,
+    0, 0, 0, 255
 ]);
 
 
 
 const nesvars = {
-                    buffersizes:{
-                        screenarraysize:(256*240*4),
-                        palettearraysize:(64*8*4),
-                        samplesperframe:29781//-0.5
-                    },
-                    refresh:60,
-                    p1input:0,
-                    gamepads:{},
+                    sizeofscreenarray:(256*240*4),
+                    sizeofpalettearray:(64*8*4),
+                    sizeofframesamplebuffer:29781,//-0.5
+                    nes_refresh:60,
+                    input_p1:0,
+                    input_gamepads:{},
                     audio:{
                         muted:false,
                         usergain:1
@@ -143,45 +147,52 @@ const nesvars = {
 
 
 async function createNES(romdataarraybuffer) {
-    await setupaudio();
+    if(nesvars.wasm_screenptr===undefined){
+        nesvars.video_ctx = nesvars.video_canvas.getContext("2d");
+        nesvars.video_imagedata = nesvars.video_ctx.createImageData(256,240);
 
-    if(nesvars.CPP_screenptr===undefined){
-        nesvars.ctx = nesvars.canvas.getContext("2d");
-        nesvars.imagedata = nesvars.ctx.createImageData(256,240);
-
-        nesvars.CPP_screenptr = Module._malloc(nesvars.buffersizes.screenarraysize);
-        Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.buffersizes.screenarraysize).fill(255);
+        nesvars.wasm_screenptr = Module._malloc(nesvars.sizeofscreenarray);
+        //Module.HEAPU8.subarray(nesvars.wasm_screenptr, nesvars.wasm_screenptr+nesvars.sizeofscreenarray).fill(255);
         
-        nesvars.CPP_palptr = Module._malloc(nesvars.buffersizes.palettearraysize);
-        let palview = Module.HEAPU8.subarray(nesvars.CPP_palptr, nesvars.CPP_palptr+nesvars.buffersizes.palettearraysize);
+        nesvars.wasm_paletteptr = Module._malloc(nesvars.sizeofpalettearray);
+        const palview = Module.HEAPU8.subarray(nesvars.wasm_paletteptr, nesvars.wasm_paletteptr+nesvars.sizeofpalettearray);
         palview.set(colours);
         //other emphasis bit variations? todo
 
-        nesvars.CPP_audiobufferptr = Module._malloc(nesvars.buffersizes.samplesperframe);
-        nesvars.CPP_sramptr = Module._malloc(1024*8);
+        nesvars.wasm_audiobufferptr = Module._malloc(nesvars.sizeofframesamplebuffer);
+        nesvars.wasm_sramptr = Module._malloc(1024*8);
+
+        nesvars.wasm_keyboardmatrix = Module._malloc(9);
+        nesvars.input_kb = Module.HEAPU8.subarray(nesvars.wasm_keyboardmatrix, nesvars.wasm_keyboardmatrix+9);
+
+        Module.ccall("clearMemory", null, ["number"], [nesvars.wasm_keyboardmatrix] );//it's big enough, use this...
+        const pointers = Module.HEAPU32.subarray(nesvars.wasm_keyboardmatrix>>2, (nesvars.wasm_keyboardmatrix>>2)+2);
+        nesvars.cpumem = Module.HEAPU8.subarray(pointers[0], pointers[0]+0x800);
+        nesvars.ppumem = Module.HEAPU8.subarray(pointers[1], pointers[1]+0x800);
+        nesvars.input_kb.fill(0);//but clear it..
     }
 
 
-    if(nesvars.CPP_romfileptr!==undefined){
+    if(nesvars.wasm_romfileptr!==undefined){
         destroynes();
     }
 
-    if(nesvars.CPP_romfileptr===undefined){
-        nesvars.framenumber = -1;
-        nesvars.CPP_rombytecount = romdataarraybuffer.byteLength;
-        nesvars.CPP_romfileptr = Module._malloc(nesvars.CPP_rombytecount);
-        let romview = Module.HEAPU8.subarray(nesvars.CPP_romfileptr, nesvars.CPP_romfileptr+nesvars.CPP_rombytecount);
+    if(nesvars.wasm_romfileptr===undefined){
+        nesvars.nes_framenumber = -1;
+        nesvars.wasm_rombytecount = romdataarraybuffer.byteLength;
+        nesvars.wasm_romfileptr = Module._malloc(nesvars.wasm_rombytecount);
+        const romview = Module.HEAPU8.subarray(nesvars.wasm_romfileptr, nesvars.wasm_romfileptr+nesvars.wasm_rombytecount);
         romview.set(new Uint8Array(romdataarraybuffer));
     
-        const nesstate = Module.ccall("createNES", "number", ["number", "number", "number", "number", "number", "number"],
-        [nesvars.CPP_screenptr, nesvars.CPP_palptr, nesvars.CPP_romfileptr, nesvars.CPP_rombytecount, nesvars.CPP_sramptr, nesvars.CPP_audiobufferptr ] );
+        const nesstate = Module.ccall("createNES", "number", ["number", "number", "number", "number", "number", "number", "number"],
+        [nesvars.wasm_screenptr, nesvars.wasm_paletteptr, nesvars.wasm_romfileptr, nesvars.wasm_rombytecount, nesvars.wasm_sramptr, nesvars.wasm_audiobufferptr, nesvars.wasm_keyboardmatrix ] );
 
         if( (nesstate&0x80000000)===0 ){
             console.log("file error");
             destroynes();
         } else {
-            nesvars.savesize = nesstate&~0x80000000;
-            if(nesvars.running===undefined){
+            nesvars.nes_savesize = nesstate&~0x80000000;
+            if(nesvars.nes_running===undefined){
                 runnes();
             }
         }
@@ -190,39 +201,47 @@ async function createNES(romdataarraybuffer) {
 
 function destroynes(){
     Module.ccall("destroyNES", null, [], [] );
-    Module._free(nesvars.CPP_romfileptr);
-    nesvars.CPP_romfileptr = undefined;
+    Module._free(nesvars.wasm_romfileptr);
+    nesvars.wasm_romfileptr = undefined;
 }
-
 
 
 
 function frameadvance(){
     checkpads();
+    //zelda kill streak: screenlog(nesvars.cpumem[0x50],false,true);
 
-    if(nesvars.CPP_romfileptr===undefined){
+    if(nesvars.wasm_romfileptr===undefined){
         console.log("no rom file");
-        if(nesvars.running!==undefined){
+        if(nesvars.nes_running!==undefined){
             runnes();
         }
         return;
     }
     
-    const audioframes = Module.ccall("processNESFrame", "number", ["number"], [nesvars.p1input] );    
-    const rawaudio = Module.HEAPU8.subarray(nesvars.CPP_audiobufferptr, nesvars.CPP_audiobufferptr+nesvars.buffersizes.samplesperframe);
+    const audioframes = Module.ccall("processNESFrame", "number", ["number", "number"], [nesvars.input_p1 | touchcon.state, 0] );
+    const rawaudio = Module.HEAPU8.subarray(nesvars.wasm_audiobufferptr, nesvars.wasm_audiobufferptr+nesvars.sizeofframesamplebuffer);
 
 
-    const oddeven = (nesvars.framenumber)&0x01;
-    if(nesvars.audio.nesnodemessage[oddeven].frame===nesvars.framenumber){
-        const otherframe = 1-oddeven;
-        nesvars.audio.advancer = (nesvars.buffersizes.samplesperframe-0.5)*64 / nesvars.audio.deltasum;
+    const oddeven = (nesvars.nes_framenumber)&0x01;
+    if(nesvars.audio.nesnodemessage[oddeven].frame===nesvars.nes_framenumber){
+        //const otherframe = 1-oddeven;
+        nesvars.audio.advancer = (nesvars.sizeofframesamplebuffer-0.5)*nesvars.audio.deltabuffersize / nesvars.audio.deltasum;
+        
 
         const offby = nesvars.audio.nesnodemessage[oddeven].missedsections-6;
-        if(offby<0){//only slow down to fill buffer, don't speed up if too much buffer. or maybe do if it gets ridiculous.. todo.
-            nesvars.audio.advancer *= 1+(( offby )*0.001);//arbitrary bullshit. needs to relate to framerate. todo.
+        if(offby<0){
+            nesvars.audio.advancer *= 1+(( offby )*0.001);//arbitrary bullshit. needs to relate to framerate??. todo.
+        }
+        if(offby>4){
+            nesvars.audio.advancer *= 1+(( offby )*0.01);//arbitrary bullshit. needs to relate to framerate??. todo.
+        }
+
+
+        if(nesvars.audio.advancer<0.1){
+            debugger;//debug - if it gets low, a frame will take a long time to get through, so hang..
         }
     }
-
 
 
     let startsection = nesvars.audio.writehead&nesvars.audio.ausectionmask;
@@ -232,45 +251,48 @@ function frameadvance(){
     }
     nesvars.audio.readhead-=audioframes;
 
-    let sectionstosend = [];
+    const sectionstosend = [];
     for(    ;
             startsection!==(nesvars.audio.writehead&nesvars.audio.ausectionmask);
             startsection = (startsection+nesvars.audio.aubufsectionlength)&nesvars.audio.ausectionmask
         ){
         sectionstosend.push( nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength) );
     }
-    nesvars.framenumber++;
-    nesvars.audio.nesnode.port.postMessage( {frame:nesvars.framenumber, sections:sectionstosend} );
+    nesvars.nes_framenumber++;
+    nesvars.audio.node_nes.port.postMessage( {frame:nesvars.nes_framenumber, sections:sectionstosend} );
 
 
-    nesvars.imagedata.data.set(Module.HEAPU8.subarray(nesvars.CPP_screenptr, nesvars.CPP_screenptr+nesvars.buffersizes.screenarraysize));
-    nesvars.ctx.putImageData(nesvars.imagedata,0,0);
+    nesvars.video_imagedata.data.set(Module.HEAPU8.subarray(nesvars.wasm_screenptr, nesvars.wasm_screenptr+nesvars.sizeofscreenarray));
+    nesvars.video_ctx.putImageData(nesvars.video_imagedata,0,0);
+    
+    nesvars.screencanv.ctx.drawImage(nesvars.video_canvas,0,0,256,240,
+        nesvars.screencanv.coords.x, nesvars.screencanv.coords.y, nesvars.screencanv.coords.w, nesvars.screencanv.coords.h);
+
 }
 
 
 
 
-async function setupaudio() {
+let missedcount = 0;
 
-    //refactor todo - destroy/create
+async function setupaudio(create) {
 
-    if(nesvars.audio.ctx!==undefined){
-        return;
-    }
-    
-    if(!window.AudioContext){
-        if(!window.webkitAudioContext){//old convention
-            return;//unsupported..
+    if(nesvars.audio.ctx===undefined){
+        if(!window.AudioContext){
+            if(!window.webkitAudioContext){//old convention
+                return;//unsupported..
+            }
+            window.AudioContext = window.webkitAudioContext;
         }
-        window.AudioContext = window.webkitAudioContext;
+        nesvars.audio.ctx = new AudioContext();
     }
-    nesvars.audio.ctx = new AudioContext();
 
-    nesvars.audio.nessamplerate = (nesvars.buffersizes.samplesperframe-0.5)*nesvars.refresh;
-    const samplespreframe = nesvars.audio.ctx.sampleRate/nesvars.refresh;
+
+    nesvars.audio.nessamplerate = (nesvars.sizeofframesamplebuffer-0.5)*nesvars.nes_refresh;
+    const samplesperframe = nesvars.audio.ctx.sampleRate/nesvars.nes_refresh;
     const minbuffersizefromaudionode = 128;
     nesvars.audio.aubufsectionlength = minbuffersizefromaudionode;
-    while(samplespreframe>nesvars.audio.aubufsectionlength){
+    while(samplesperframe>nesvars.audio.aubufsectionlength){
         nesvars.audio.aubufsectionlength*=2;
     }
 
@@ -281,145 +303,132 @@ async function setupaudio() {
 
     nesvars.audio.aubuffer = new Float32Array(nesvars.audio.fullaubuflength);
     nesvars.audio.readhead = 0;
-    nesvars.audio.advancer = (nesvars.audio.nessamplerate/nesvars.audio.ctx.sampleRate) * 1.0315;//why? who knows.
+    nesvars.audio.advancer = (nesvars.audio.nessamplerate/nesvars.audio.ctx.sampleRate);// * 1.0315;//why? who knows.
+
+
+    nesvars.audio.nesnodemessage = { 0:{}, 1:{} };
+
+
+    const addstub = ()=>{
+        nesvars.audio.node_nes = { port:{postMessage:function(buf){
+            //do something else??
+        }}};
+    }
 
     if(nesvars.audio.ctx.audioWorklet===undefined){
         const message = "audioWorklet unsupported. https issues??"
         screenlog(message);
-        nesvars.audio.nesnode = { port:{postMessage:function(buf){
-            //use the crappy old one instead?
-        }}};
+        addstub();
         debugger;
         return;
     }
 
-    await nesvars.audio.ctx.audioWorklet.addModule("nesaudio.js");
 
-    nesvars.audio.nesnode = new AudioWorkletNode(
-        nesvars.audio.ctx,
-        "nesaudio", {
-            processorOptions:{
-                sectionsize: nesvars.audio.aubufsectionlength
-            }
-        }
-    );
 
-    let missedcount = 0;
-
-    const bitsformask = 7;//7=64?
-    nesvars.audio.deltabitstoshiftby = (-1) + bitsformask;
-    nesvars.audio.deltamask = (1<<nesvars.audio.deltabitstoshiftby)-1;
-    nesvars.audio.deltaindex = 0;
-    nesvars.audio.deltas = [];
-    for(let i =0;i<(nesvars.audio.deltamask+1);i++){
-        nesvars.audio.deltas.push( Math.floor(samplespreframe) );
-    }
-    nesvars.audio.deltasum = Math.floor(samplespreframe)*(nesvars.audio.deltamask+1);
+    if(nesvars.audio.node_gain===undefined){
+        //create, if we can.
+        await nesvars.audio.ctx.audioWorklet.addModule("nesaudio.js")
+        .then( resolved=>{}, rejected=>{
+            console.log(rejected);
+            addstub();
+            return;
+        });
+        //no way to check if already done? what happens if it has???
     
-    nesvars.audio.deltaaverage = Math.floor(samplespreframe);;
-    nesvars.audio.nesnodemessage = { 0:{}, 1:{} };
-    //let thing = { frame:-1, samplesdelta:0, ahead:0, missedsections:0, samplesofcurrentleft:nesvars.audio.aubufsectionlength };
-
-    nesvars.audio.nesnode.port.onmessage = (e) => {
-        //console.log(e.data.missedsections);
-
-        if(e.data.missedsections<0){
-            missedcount++;
-            screenlog("missed:"+missedcount,false,true);
-        }
-
-        const oddeven = (e.data.frame)&0x01;
-        nesvars.audio.nesnodemessage[oddeven] = e.data;//todo - elsewhere?
-
-        nesvars.audio.deltasum-=nesvars.audio.deltas[nesvars.audio.deltaindex];
-        nesvars.audio.deltas[nesvars.audio.deltaindex] = e.data.samplesdelta;
-        nesvars.audio.deltasum+=nesvars.audio.deltas[nesvars.audio.deltaindex];
-        nesvars.audio.deltaindex = (nesvars.audio.deltaindex+1)&nesvars.audio.deltamask;
         
-        nesvars.audio.deltaaverage = nesvars.audio.deltasum>>nesvars.audio.deltabitstoshiftby;
-
-    };
-
-    nesvars.audio.hipassnode = new BiquadFilterNode(nesvars.audio.ctx);
-    nesvars.audio.hipassnode.type = "highpass";
-    nesvars.audio.hipassnode.frequency.value = 25;
-    nesvars.audio.hipassnode.Q.value = 1;
-    //nesvars.audio.hipassnode.gain
-
-    /*nesvars.audio.lowpassnode = new BiquadFilterNode(nesvars.audio.ctx);
-    nesvars.audio.lowpassnode.type = "lowpass";
-    nesvars.audio.lowpassnode.frequency.value = 10000;
-    nesvars.audio.lowpassnode.Q.value = 1;*/
-
-    nesvars.audio.gainnode = new GainNode(nesvars.audio.ctx);
-    nesvars.audio.gainnode.gain.value = 0;
-
-    nesvars.audio.analysernode = new AnalyserNode(nesvars.audio.ctx);
-    nesvars.audio.analysernode.fftSize = 2048;
-
-    nesvars.bufferLength = nesvars.audio.analysernode.frequencyBinCount;
-    nesvars.dataArray = new Uint8Array(nesvars.bufferLength);
-    nesvars.audio.analysernode.getByteTimeDomainData(nesvars.dataArray);
-
-    nesvars.osccanvas = document.getElementById("oscilloscope");
-    nesvars.osccanvasctx = canvas.getContext("2d");
-
-
-
-    nesvars.audio.nesnode
-        .connect(nesvars.audio.hipassnode)
+        nesvars.audio.node_hipass = new BiquadFilterNode(nesvars.audio.ctx);
+        nesvars.audio.node_hipass.type = "highpass";
+        nesvars.audio.node_hipass.frequency.value = 25;
+        nesvars.audio.node_hipass.Q.value = 1;
+        //nesvars.audio.node_hipass.gain
+    
+        /*nesvars.audio.lowpassnode = new BiquadFilterNode(nesvars.audio.ctx);
+        nesvars.audio.lowpassnode.type = "lowpass";
+        nesvars.audio.lowpassnode.frequency.value = 10000;
+        nesvars.audio.lowpassnode.Q.value = 1;*/
+    
+        nesvars.audio.node_gain = new GainNode(nesvars.audio.ctx);
+        nesvars.audio.node_gain.gain.value = 1;
+    
+        //nesvars.audio.node_analyser = new AnalyserNode(nesvars.audio.ctx);
+        
+        nesvars.audio.node_hipass
         //.connect(nesvars.audio.lowpassnode)
-        .connect(nesvars.audio.analysernode)
-        .connect(nesvars.audio.gainnode)
-        .connect(nesvars.audio.ctx.destination);
+            //.connect(nesvars.audio.node_analyser)
+            .connect(nesvars.audio.node_gain)
+            .connect(nesvars.audio.ctx.destination);
+            
 
-        drawfft();
-}
-
-
-
-function drawfft(){
-    requestAnimationFrame(drawfft);
-
-    nesvars.audio.analysernode.getByteTimeDomainData(nesvars.dataArray);
-
-    nesvars.osccanvasctx.fillStyle = "rgb(200 200 200)";
-    nesvars.osccanvasctx.fillRect(0, 0, nesvars.osccanvas.width, nesvars.osccanvas.height);
-
-    nesvars.osccanvasctx.lineWidth = 2;
-    nesvars.osccanvasctx.strokeStyle = "rgb(0 0 0)";
-
-    nesvars.osccanvasctx.beginPath();
-
-    const sliceWidth = (nesvars.osccanvas.width * 1.0) / nesvars.bufferLength;
-    let x = 0;
-
-    for (let i = 0; i < nesvars.bufferLength; i++) {
-        const v = nesvars.dataArray[i] / 128.0;
-        const y = (v * nesvars.osccanvas.height) / 2;
-
-        if (i === 0) {
-            nesvars.osccanvasctx.moveTo(x, y);
-        } else {
-            nesvars.osccanvasctx.lineTo(x, y);
-        }
-
-        x += sliceWidth;
     }
-    nesvars.osccanvasctx.lineTo(nesvars.osccanvas.width, nesvars.osccanvas.height / 2);
-    nesvars.osccanvasctx.stroke();
+
+
+    if(create===true){
+        if(nesvars.audio.node_nes===undefined){
+
+            nesvars.audio.node_nes = new AudioWorkletNode(
+                nesvars.audio.ctx,
+                "nesaudio", {
+                    processorOptions:{
+                        sectionsize: nesvars.audio.aubufsectionlength
+                    }
+                }
+            );
+            
+            nesvars.audio.deltabitstoshiftby = 6;//0 minimum, 2 to the 6 = 64
+            nesvars.audio.deltabuffersize = (1<<nesvars.audio.deltabitstoshiftby);
+            nesvars.audio.deltamask = nesvars.audio.deltabuffersize-1;
+            nesvars.audio.deltaindex = 0;
+            nesvars.audio.deltas = [];
+            for(let i =0;i<(nesvars.audio.deltabuffersize);i++){
+                nesvars.audio.deltas.push( Math.floor(samplesperframe) );
+            }
+            nesvars.audio.deltasum = Math.floor(samplesperframe)*(nesvars.audio.deltabuffersize);
+            
+            //nesvars.audio.deltaaverage = Math.floor(samplesperframe);
+                
+
+            nesvars.audio.node_nes.port.onmessage = (e) => {
+                //console.log(e.data.missedsections);
+        
+                if(e.data.missedsections<0){
+                    missedcount++;
+                    screenlog("buffer underruns:"+missedcount,false,true);
+                }
+        
+                const oddeven = (e.data.frame)&0x01;
+                nesvars.audio.nesnodemessage[oddeven] = e.data;//todo - elsewhere?
+        
+                nesvars.audio.deltasum-=nesvars.audio.deltas[nesvars.audio.deltaindex];
+                nesvars.audio.deltas[nesvars.audio.deltaindex] = e.data.samplesdelta;
+                nesvars.audio.deltasum+=nesvars.audio.deltas[nesvars.audio.deltaindex];
+                nesvars.audio.deltaindex = (nesvars.audio.deltaindex+1)&nesvars.audio.deltamask;
+                
+                //nesvars.audio.deltaaverage = nesvars.audio.deltasum>>nesvars.audio.deltabitstoshiftby;
+        
+            };
+            nesvars.audio.node_nes.connect(nesvars.audio.node_hipass);
+        }
+    } else {
+        if(nesvars.audio.node_nes!==undefined){
+            nesvars.audio.node_nes.disconnect(nesvars.audio.node_hipass);
+            nesvars.audio.node_nes = undefined;
+        }
+    }
 }
+
+
+
 
 
 function setgain(gain) {
     if(gain!==undefined){
         nesvars.audio.usergain = gain;
     }
-    if(nesvars.audio.gainnode!==undefined){
+    if(nesvars.audio.node_gain!==undefined){
         if(nesvars.audio.muted===true){
-            nesvars.audio.gainnode.gain.value = 0;
+            nesvars.audio.node_gain.gain.value = 0;
         } else {
-            nesvars.audio.gainnode.gain.value = nesvars.audio.usergain;
+            nesvars.audio.node_gain.gain.value = nesvars.audio.usergain;
         }
     }
 }
@@ -486,9 +495,9 @@ function setinput(key,pressed){
 function setinputfromindex(index,pressed){
     const bit = (1<<index);
     if(pressed===true){
-        nesvars.p1input |= bit;
+        nesvars.input_p1 |= bit;
     } else {
-        nesvars.p1input &= ~bit;
+        nesvars.input_p1 &= ~bit;
     }
 }
 
@@ -496,9 +505,9 @@ function setinputfromindex(index,pressed){
 function gamepadHandler(event, connected) {
     const gamepad = event.gamepad;  
     if (connected) {
-      nesvars.gamepads[gamepad.index] = gamepad;
+      nesvars.input_gamepads[gamepad.index] = gamepad;
     } else {
-      delete nesvars.gamepads[gamepad.index];
+      delete nesvars.input_gamepads[gamepad.index];
     }
     //console.log(nesvars);
 }
@@ -534,6 +543,7 @@ function registercontrollers(){
         true,
     );
 
+    
 
     window.addEventListener(
         "gamepadconnected",
@@ -563,25 +573,26 @@ const passedromfile = async(event) => {
     loadfileelement.value = "";
 }
 
-const runnes = (event) => {
-    if(nesvars.running===undefined){
-        //maybe reset something timing related.. todo.
-        nesvars.running = setInterval(frameadvance, 1000/(nesvars.refresh));
+
+const runnes = async (event) => {
+    if(nesvars.nes_running===undefined){
+        await setupaudio(true);
+        nesvars.nes_running = setInterval(frameadvance, 1000/(nesvars.nes_refresh));
         nesvars.audio.muted = false;
     } else {
-        clearInterval(nesvars.running);
-        nesvars.running = undefined;
+        clearInterval(nesvars.nes_running);
+        await setupaudio(false);
+        nesvars.nes_running = undefined;
         nesvars.audio.muted = true;
     }
     setgain();
 }
 
 
-const neselement = document.querySelector("body");
-
-nesvars.canvas = addcanvas(neselement,256,240);
-addfileselect(neselement,passedromfile);
-addbutton(neselement,"Start/Pause",runnes);
+nesvars.video_canvas = addcanvas(null,256,240);
+addfileselect( document.getElementById("puthere") ,passedromfile);
+nesvars.screencanv = touchcon.init( document.getElementById("puthere") );
+addbutton(document.body,"Start/Pause",runnes);
 
 
 
@@ -616,7 +627,7 @@ function windowactivething(){
     
     document.addEventListener(visibilityChange, handleVisibilityChange  );
 }
-windowactivething();//don't think this even works..
+//windowactivething();//don't think this even works.. todo.
 
 
 
