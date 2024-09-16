@@ -6,34 +6,17 @@
         <title>NES</title>        
     </head>
     <body>
-        <div id="puthere"></div>
+        <div id="nes"></div>
 
-        <div id=tommy></div>
-
-        <figure id=spinner style=overflow:visible>
-            <div class=spinner></div>
-        </figure>
-
-        <div class=emscripten id=status>Downloading...</div>
-
-        <div class=emscripten>
-            <progress hidden id=progress max=100 value=0></progress>
+        <div id=status>Downloading...</div>
+        
+        <div id=spinner style=overflow:visible>Spinnin and that.</div>
+        <progress hidden id=progress max=100 value=0></progress>
+        
+        <div>
+            <canvas id=canvas oncontextmenu=event.preventDefault() tabindex=-1></canvas>
+            <textarea id=output rows=8></textarea>
         </div>
-
-        <div class=emscripten_border>
-            <canvas class=emscripten id=canvas oncontextmenu=event.preventDefault() tabindex=-1></canvas>
-        </div>
-
-        <div class=emscripten>
-            <input type=checkbox id=resize>
-            Resize canvas
-            <input type=checkbox id=pointerLock checked>
-            Lock/hide mouse pointer     
-            <input type=button onclick='Module.requestFullscreen(document.getElementById("pointerLock").checked, document.getElementById("resize").checked)'value=Fullscreen>
-        </div>
-
-        <textarea class=emscripten id=output rows=8></textarea>
-
 
         
         
@@ -101,6 +84,6 @@
             }
         </script>
         <script async src=index.js></script>
-        <script async type="module" src="nes.js"></script>
+        <script async type="module" src="main.js"></script>
     </body>
 </html>

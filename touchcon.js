@@ -2,75 +2,15 @@
 
 
 
-function getelement(eltype, eltext=null, attribs=[]){
-    const thiselement = document.createElement(eltype);
-    if(eltext!==null){
-        thiselement.appendChild(document.createTextNode(eltext));
-    }
-    attribs.forEach( thisattrib => {
-        const attrib = document.createAttribute(thisattrib.name);
-        attrib.value = thisattrib.val;
-        thiselement.setAttributeNode(attrib);
-    });
-    return thiselement;
-}
-
-function getanchor(anchortext,linkaddress = null){
-    return getelement("a", anchortext, [{ name:"href", val:linkaddress!==null?linkaddress:anchortext}] );
-}
-
-function getanchorinelement(eltype, anchortext, linkaddress = null){
-    const thiselement = document.createElement(eltype);
-    thiselement.appendChild(getanchor(anchortext,linkaddress));
-    return thiselement;
-}
-
-function addbutton(addtoelement=null, buttontext="a button", thefunc = async (event)=>{console.log(event);} ){
-    const thisbutton= getelement("button",buttontext );
-    thisbutton.addEventListener('click', thefunc, false );//bubbling/capturing?
-    if(addtoelement!==null){
-        addtoelement.appendChild(thisbutton);
-    }
-    return thisbutton;
-}
-
-function addfileselect(addtoelement=null, thefunc = async (event)=>{console.log(event);} ){
-    const thisfs= getelement("input",null,[  {name:"type", val:"file"}]);
-                                            //,{name:"multiple", val:null}]);
-    thisfs.addEventListener('change', thefunc );
-    if(addtoelement!==null){
-        addtoelement.appendChild(thisfs);
-    }
-    return thisfs;
-}
-
-function addcanvas(addtoelement=null, x, y ){
-    const thiscanv= getelement("canvas",null,[  {name:"width", val:x}
-                                                ,{name:"height", val:y}]);
-    if(addtoelement!==null){
-        addtoelement.appendChild(thiscanv);
-    }
-    return thiscanv;
-}
-
-
-
-
-
-
-
-
-
-
-
 let padstate = 0;
 
 const touchmap = {};
 
 const touchcontroller = {
-    enabled:true,
+    touchenabled:true,
     screenratio:0.6,
-    scale:0.3,
+    width:256,
+    height:240,
     controls:[],
     screencanv:{}
 };
@@ -84,19 +24,6 @@ const btns = {
     dpad:4
 };
 
-
-function toggleFullscreen() {  
-    if (!document.fullscreenElement) {
-        touchcontroller.scale = 1;
-        touchcontroller.canvas.requestFullscreen().catch((err) => {
-            console.log(err);
-        });
-        //touchcontroller.enabled=true;
-    } else {
-        document.exitFullscreen();
-        //touchcontroller.enabled=false;
-    }
-}
 
 
 
@@ -204,7 +131,6 @@ const handletouchevent = (event) =>{
         }
     } );
     //console.log({padstate});
-    document.getElementById("statedisplay").innerText=padstate.toString();
 };
 
 
@@ -223,32 +149,64 @@ function drawthing (ctx, thing, colour, coords){
 
 
 
-function createcontroller(appendto){
+
+function createcontroller(appendto = document.body, options = null){
+
+    if(options!==null){
+        //enabletouch, screenratio = {...options};
+
+        if(options.width!==undefined){
+            touchcontroller.width = options.width;
+            touchcontroller.height = options.height;
+        }
+
+        if(options.screenratio!==undefined){
+            touchcontroller.screenratio = options.screenratio;
+        }
+        
+        if(options.enabletouch!==touchcontroller.touchenabled){
+            touchcontroller.touchenabled = options.enabletouch;
+        }
+    }
+
+
+    //may be able to exit early??
+
+
+    const infullscreen = document.fullscreenElement===touchcontroller.canvas;
     const htmlelement = document.querySelector("html");
-    const width = htmlelement.clientWidth*touchcontroller.scale;//screen.width
-    const height = htmlelement.clientHeight*touchcontroller.scale;
+    const width = infullscreen?htmlelement.clientWidth:touchcontroller.width;//screen.width
+    const height = infullscreen?htmlelement.clientHeight:touchcontroller.height;
+    const screenratio = infullscreen?touchcontroller.screenratio:1;
+
     const nesaspect = 256/240;
     const aspect = width/height;
     touchcontroller.portrait = aspect<nesaspect;
 
-    if(touchcontroller.main===undefined){
-        touchcontroller.main = getelement("div");
-        appendto.appendChild(touchcontroller.main);
-        touchcontroller.canvas = addcanvas(touchcontroller.main,width,height);
-        touchcontroller.screencanv.ctx = touchcontroller.canvas.getContext("2d");
+    if(touchcontroller.canvas===undefined){
+        if(appendto===null){
+            return null;
+        }
 
-        touchcontroller.canvas.addEventListener('touchstart',handletouchevent);
-        touchcontroller.canvas.addEventListener('touchmove',handletouchevent);
-        touchcontroller.canvas.addEventListener('touchend',handletouchevent);
-        touchcontroller.canvas.addEventListener('touchcancel',handletouchevent);
+        touchcontroller.canvas = document.createElement("canvas");
+
+        const widthattrib = document.createAttribute("width");
+        widthattrib.value = width;
+        touchcontroller.canvas.setAttributeNode(widthattrib);
+        const heightattrib = document.createAttribute("height");
+        heightattrib.value = height;
+        touchcontroller.canvas.setAttributeNode(heightattrib);
         
-        addbutton(touchcontroller.main,"Fullscreen",toggleFullscreen);
-        touchcontroller.main.appendChild(getelement("div","",[{name:"id","val":"statedisplay"}]));
+        appendto.appendChild(touchcontroller.canvas);
+
+        touchcontroller.screencanv.ctx = touchcontroller.canvas.getContext("2d");
+        touchcontroller.canvas.addEventListener('fullscreenchange',createcontroller);
+        touchcontroller.canvas.addEventListener('fullscreenerror',createcontroller);
     }
 
     if(touchcontroller.portrait){
         //console.log("portrait");
-        let scalerp = (nesaspect/aspect)*touchcontroller.screenratio;//clamp to 1 max
+        let scalerp = (nesaspect/aspect)*screenratio;//clamp to 1 max
         if(scalerp>1){
             scalerp = 1;
         }
@@ -270,7 +228,7 @@ function createcontroller(appendto){
 
     } else {
         //console.log("landscape");
-        let scalerl = (aspect/nesaspect)*touchcontroller.screenratio;//clamp to 1 max.
+        let scalerl = (aspect/nesaspect)*screenratio;//clamp to 1 max.
         if(scalerl>1){
             scalerl = 1;
         }
@@ -292,17 +250,33 @@ function createcontroller(appendto){
     touchcontroller.canvas.height = height;
 
     drawthing(touchcontroller.screencanv.ctx, "rect", "black", {x:0, y:0, w:width, h:height });
-    drawthing(touchcontroller.screencanv.ctx, "rect", "white", touchcontroller.screencanv.coords);    
-
-    if(touchcontroller.enabled){
+    drawthing(touchcontroller.screencanv.ctx, "rect", "white", touchcontroller.screencanv.coords);
+  
+    if(touchcontroller.touchenabled){
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["dpad"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["abut"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["bbut"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["start"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["select"]]);
+        if(!touchcontroller.eventsregistered){
+            touchcontroller.canvas.addEventListener('touchstart',handletouchevent);
+            touchcontroller.canvas.addEventListener('touchmove',handletouchevent);
+            touchcontroller.canvas.addEventListener('touchend',handletouchevent);
+            touchcontroller.canvas.addEventListener('touchcancel',handletouchevent);
+            touchcontroller.eventsregistered = true;
+        }
+    } else {
+        if(touchcontroller.eventsregistered){
+            touchcontroller.canvas.removeEventListener('touchstart',handletouchevent);
+            touchcontroller.canvas.removeEventListener('touchmove',handletouchevent);
+            touchcontroller.canvas.removeEventListener('touchend',handletouchevent);
+            touchcontroller.canvas.removeEventListener('touchcancel',handletouchevent);
+            touchcontroller.eventsregistered = false;
+        }
     }
-    return touchcontroller.screencanv;
+    return touchcontroller.canvas;
 }
+
 
 
 
@@ -313,27 +287,23 @@ class touchcon{
         return padstate;
     }
 
-    config( enable = true, screenratio = null ){
-        if(screenratio!==null){
-            touchcontroller.screenratio = screenratio;
+
+
+    config(options , appendto = null ){
+        if(createcontroller(appendto, options)===null){
+            return false;
         }
-        if(enable!==touchcontroller.enabled){
-            touchcontroller.enabled = enable;
+
+        screen.orientation.addEventListener("change", function(e) {
             createcontroller();
-        }
-    }
-    
-    init(appendto = document.body){
-        const screencanv = createcontroller(appendto);
+        });
+
         
         addEventListener("resize", (event) => {
             createcontroller();
         });
         
-        screen.orientation.addEventListener("change", function(e) {
-            createcontroller();
-        });
-    
+        
         /*let portrait = window.matchMedia("(orientation: portrait)");
         portrait.addEventListener("change", function(e) {
             if(e.matches) {
@@ -342,8 +312,39 @@ class touchcon{
                 // Landscape
             }
         })*/
-        return screencanv;
+
+        return true;
     }
+
+
+ 
+
+    toggleFullscreen() {
+        if(document.fullscreenEnabled){
+            if (!document.fullscreenElement) {
+                touchcontroller.canvas.requestFullscreen().catch((err) => {
+                    console.log(err);
+                    return false
+                });
+                return true;
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        return false;
+    }
+
+
+    drawNES(nescanvas){
+        touchcontroller.screencanv.ctx
+            .drawImage(nescanvas,0,0,256,240,
+            touchcontroller.screencanv.coords.x,
+            touchcontroller.screencanv.coords.y,
+            touchcontroller.screencanv.coords.w,
+            touchcontroller.screencanv.coords.h);
+    }
+
+
 }
 
 export default new touchcon();

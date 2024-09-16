@@ -1,150 +1,30 @@
-import touchcon from './touchcon.js'
+import nescolours from './nescolours.js'
 
-const searchParams = new URLSearchParams(window.location.search);
-const debug = searchParams.has("debug");
-
-
-
-
-
-
-function getelement(eltype, eltext=null, attribs=[]){
-    const thiselement = document.createElement(eltype);
-    if(eltext!==null){
-        thiselement.appendChild(document.createTextNode(eltext));
-    }
-    attribs.forEach( thisattrib => {
-        const attrib = document.createAttribute(thisattrib.name);
-        attrib.value = thisattrib.val;
-        thiselement.setAttributeNode(attrib);
-    });
-    return thiselement;
-}
-
-function getanchor(anchortext,linkaddress = null){
-    return getelement("a", anchortext, [{ name:"href", val:linkaddress!==null?linkaddress:anchortext}] );
-}
-
-function getanchorinelement(eltype, anchortext, linkaddress = null){
-    const thiselement = document.createElement(eltype);
-    thiselement.appendChild(getanchor(anchortext,linkaddress));
-    return thiselement;
-}
-
-function addbutton(addtoelement=null, buttontext="a button", thefunc = async (event)=>{console.log(event);} ){
-    const thisbutton= getelement("button",buttontext );
-    thisbutton.addEventListener('click', thefunc, false );//bubbling/capturing?
-    if(addtoelement!==null){
-        addtoelement.appendChild(thisbutton);
-    }
-    return thisbutton;
-}
-
-function addfileselect(addtoelement=null, thefunc = async (event)=>{console.log(event);} ){
-    const thisfs= getelement("input",null,[  {name:"type", val:"file"}]);
-                                            //,{name:"multiple", val:null}]);
-    thisfs.addEventListener('change', thefunc );
-    if(addtoelement!==null){
-        addtoelement.appendChild(thisfs);
-    }
-    return thisfs;
-}
-
-function addcanvas(addtoelement=null, x, y ){
-    const thiscanv= getelement("canvas",null,[  {name:"width", val:x}
-                                                ,{name:"height", val:y}]);
-    if(addtoelement!==null){
-        addtoelement.appendChild(thiscanv);
-    }
-    return thiscanv;
-}
-
-
-
-
-
-const colours = new Uint8Array([
-    84, 84, 84, 255,
-    0, 30, 116, 255,
-    8, 16, 144, 255,
-    48, 0, 136, 255,
-    68, 0, 100, 255,
-    92, 0, 48, 255,
-    84, 4, 0, 255,
-    60, 24, 0, 255,
-    32, 42, 0, 255,
-    8, 58, 0, 255,
-    0, 64, 0, 255,
-    0, 60, 0, 255,
-    0, 50, 60, 255,
-    0, 0, 0, 255,
-    0, 0, 0, 255,
-    0, 0, 0, 255,
-    152, 150, 152, 255,
-    8, 76, 196, 255,
-    48, 50, 236, 255,
-    92, 30, 228, 255,
-    136, 20, 176, 255,
-    160, 20, 100, 255,
-    152, 34, 32, 255,
-    120, 60, 0, 255,
-    84, 90, 0, 255,
-    40, 114, 0, 255,
-    8, 124, 0, 255,
-    0, 118, 40, 255,
-    0, 102, 120, 255,
-    0, 0, 0, 255,
-    0, 0, 0, 255,
-    0, 0, 0, 255,
-    236, 238, 236, 255,
-    76, 154, 236, 255,
-    120, 124, 236, 255,
-    176, 98, 236, 255,
-    228, 84, 236, 255,
-    236, 88, 180, 255,
-    236, 106, 100, 255,
-    212, 136, 32, 255,
-    160, 170, 0, 255,
-    116, 196, 0, 255,
-    76, 208, 32, 255,
-    56, 204, 108, 255,
-    56, 180, 204, 255,
-    60, 60, 60, 255,
-    0, 0, 0, 255,
-    0, 0, 0, 255,
-    236, 238, 236, 255,
-    168, 204, 236, 255,
-    188, 188, 236, 255,
-    212, 178, 236, 255,
-    236, 174, 236, 255,
-    236, 174, 212, 255,
-    236, 180, 176, 255,
-    228, 196, 144, 255,
-    204, 210, 120, 255,
-    180, 222, 120, 255,
-    168, 226, 144, 255,
-    152, 226, 180, 255,
-    160, 214, 228, 255,
-    160, 162, 160, 255,
-    0, 0, 0, 255,
-    0, 0, 0, 255
-]);
-
-
+let underruns = 0;
 
 const nesvars = {
                     sizeofscreenarray:(256*240*4),
                     sizeofpalettearray:(64*8*4),
                     sizeofframesamplebuffer:29781,//-0.5
                     nes_refresh:60,
-                    input_p1:0,
-                    input_gamepads:{},
+                    inputs:[0,0],
                     audio:{
                         muted:false,
                         usergain:1
                     }
                 };
 
+
+
+
+
+function getNESpalettebuffer(){
+    if(nesvars.wasm_paletteptr===undefined){
+        nesvars.wasm_paletteptr = Module._malloc(nesvars.sizeofpalettearray);
+    }
+    const palbuf = Module.HEAPU8.subarray(nesvars.wasm_paletteptr, nesvars.wasm_paletteptr+nesvars.sizeofpalettearray);
+    return palbuf;
+}
 
 async function createNES(romdataarraybuffer) {
     if(nesvars.wasm_screenptr===undefined){
@@ -154,10 +34,7 @@ async function createNES(romdataarraybuffer) {
         nesvars.wasm_screenptr = Module._malloc(nesvars.sizeofscreenarray);
         //Module.HEAPU8.subarray(nesvars.wasm_screenptr, nesvars.wasm_screenptr+nesvars.sizeofscreenarray).fill(255);
         
-        nesvars.wasm_paletteptr = Module._malloc(nesvars.sizeofpalettearray);
-        const palview = Module.HEAPU8.subarray(nesvars.wasm_paletteptr, nesvars.wasm_paletteptr+nesvars.sizeofpalettearray);
-        palview.set(colours);
-        //other emphasis bit variations? todo
+        getNESpalettebuffer().set(nescolours);//don't do here.. todo.
 
         nesvars.wasm_audiobufferptr = Module._malloc(nesvars.sizeofframesamplebuffer);
         nesvars.wasm_sramptr = Module._malloc(1024*8);
@@ -172,12 +49,14 @@ async function createNES(romdataarraybuffer) {
         nesvars.input_kb.fill(0);//but clear it..
     }
 
-
     if(nesvars.wasm_romfileptr!==undefined){
         destroynes();
     }
 
     if(nesvars.wasm_romfileptr===undefined){
+        if(romdataarraybuffer===null){
+            return;
+        }
         nesvars.nes_framenumber = -1;
         nesvars.wasm_rombytecount = romdataarraybuffer.byteLength;
         nesvars.wasm_romfileptr = Module._malloc(nesvars.wasm_rombytecount);
@@ -199,6 +78,9 @@ async function createNES(romdataarraybuffer) {
     }
 }
 
+
+
+
 function destroynes(){
     Module.ccall("destroyNES", null, [], [] );
     Module._free(nesvars.wasm_romfileptr);
@@ -207,9 +89,9 @@ function destroynes(){
 
 
 
+
 function frameadvance(){
-    checkpads();
-    //zelda kill streak: screenlog(nesvars.cpumem[0x50],false,true);
+    nesvars.inputs = nesvars.getinputs();
 
     if(nesvars.wasm_romfileptr===undefined){
         console.log("no rom file");
@@ -219,7 +101,7 @@ function frameadvance(){
         return;
     }
     
-    const audioframes = Module.ccall("processNESFrame", "number", ["number", "number"], [nesvars.input_p1 | touchcon.state, 0] );
+    const audioframes = Module.ccall("processNESFrame", "number", ["number", "number"], [nesvars.inputs[0], nesvars.inputs[1]] );
     const rawaudio = Module.HEAPU8.subarray(nesvars.wasm_audiobufferptr, nesvars.wasm_audiobufferptr+nesvars.sizeofframesamplebuffer);
 
 
@@ -264,16 +146,17 @@ function frameadvance(){
 
     nesvars.video_imagedata.data.set(Module.HEAPU8.subarray(nesvars.wasm_screenptr, nesvars.wasm_screenptr+nesvars.sizeofscreenarray));
     nesvars.video_ctx.putImageData(nesvars.video_imagedata,0,0);
-    
-    nesvars.screencanv.ctx.drawImage(nesvars.video_canvas,0,0,256,240,
-        nesvars.screencanv.coords.x, nesvars.screencanv.coords.y, nesvars.screencanv.coords.w, nesvars.screencanv.coords.h);
 
+
+    nesvars.drawnes(nesvars.video_canvas);
 }
 
 
 
 
-let missedcount = 0;
+
+
+
 
 async function setupaudio(create) {
 
@@ -317,7 +200,6 @@ async function setupaudio(create) {
 
     if(nesvars.audio.ctx.audioWorklet===undefined){
         const message = "audioWorklet unsupported. https issues??"
-        screenlog(message);
         addstub();
         debugger;
         return;
@@ -391,8 +273,7 @@ async function setupaudio(create) {
                 //console.log(e.data.missedsections);
         
                 if(e.data.missedsections<0){
-                    missedcount++;
-                    screenlog("buffer underruns:"+missedcount,false,true);
+                    underruns++;
                 }
         
                 const oddeven = (e.data.frame)&0x01;
@@ -420,158 +301,17 @@ async function setupaudio(create) {
 
 
 
-function setgain(gain) {
-    if(gain!==undefined){
-        nesvars.audio.usergain = gain;
-    }
-    if(nesvars.audio.node_gain!==undefined){
-        if(nesvars.audio.muted===true){
-            nesvars.audio.node_gain.gain.value = 0;
-        } else {
-            nesvars.audio.node_gain.gain.value = nesvars.audio.usergain;
-        }
-    }
-}
 
 
+nesvars.video_canvas = document.createElement("canvas");
+const widthattrib = document.createAttribute("width");
+widthattrib.value = 256;
+nesvars.video_canvas.setAttributeNode(widthattrib);
+const heightattrib = document.createAttribute("height");
+heightattrib.value = 240;
+nesvars.video_canvas.setAttributeNode(heightattrib);
 
 
-
-
-function checkpads(){
-    for(const gamepad of navigator.getGamepads()){
-        if(!gamepad) continue;
-        /*if(gamepad.index!==0){
-            continue;
-        }*/
-        for(const [i, button] of gamepad.buttons.entries()){
-            const index = {//xbox360/linux
-                0:0,
-                3:1,
-                8:2,
-                9:3,
-                12:4,
-                13:5,
-                14:6,
-                15:7
-            }[i];
-            if(index!==undefined){
-                setinputfromindex(index,button.pressed);
-            }
-        }
-        for(const [i, axis] of gamepad.axes.entries()){
-            //console.log(axis);
-        }
-    }
-}
-
-function setinput(key,pressed){
-    const index = {
-        "x":0,//A
-        "z":1,//B
-        "c":2,//Select
-        "v":3,//Start
-        "ArrowUp":4,
-        "ArrowDown":5,
-        "ArrowLeft":6,
-        "ArrowRight":7,
-
-        " ":0,//space, modern pc layout
-        "Enter":1,
-        "q":2,
-        "e":3,
-        "w":4,
-        "s":5,
-        "a":6,
-        "d":7,
-    }[key];
-    if(index===undefined){
-        return false;
-    }
-    setinputfromindex(index,pressed);
-    return true;
-}
-
-function setinputfromindex(index,pressed){
-    const bit = (1<<index);
-    if(pressed===true){
-        nesvars.input_p1 |= bit;
-    } else {
-        nesvars.input_p1 &= ~bit;
-    }
-}
-
-
-function gamepadHandler(event, connected) {
-    const gamepad = event.gamepad;  
-    if (connected) {
-      nesvars.input_gamepads[gamepad.index] = gamepad;
-    } else {
-      delete nesvars.input_gamepads[gamepad.index];
-    }
-    //console.log(nesvars);
-}
-
-
-function registercontrollers(){
-    window.addEventListener(
-        "keydown",
-        (event) => {
-            if (event.defaultPrevented) {
-                return;
-            }
-            if(event.key==="Escape"){
-                runnes();
-                return;
-            }
-            if(setinput(event.key,true)){
-                event.preventDefault();
-            }
-        },
-        true,
-    );
-    window.addEventListener(
-        "keyup",
-        (event) => {
-            if (event.defaultPrevented) {
-                return;
-            }
-            if(setinput(event.key,false)){
-                event.preventDefault();
-            }
-        },
-        true,
-    );
-
-    
-
-    window.addEventListener(
-        "gamepadconnected",
-        (e) => {
-          gamepadHandler(e, true);
-        },
-        false,
-      );
-      window.addEventListener(
-        "gamepaddisconnected",
-        (e) => {
-          gamepadHandler(e, false);
-        },
-        false,
-    );
-
-}
-
-registercontrollers();
-
-
-
-
-const passedromfile = async(event) => {
-    const loadfileelement = event.target;    
-    await createNES(await loadfileelement.files[0].arrayBuffer());
-    loadfileelement.value = "";
-}
 
 
 const runnes = async (event) => {
@@ -588,59 +328,64 @@ const runnes = async (event) => {
     setgain();
 }
 
-
-nesvars.video_canvas = addcanvas(null,256,240);
-addfileselect( document.getElementById("puthere") ,passedromfile);
-nesvars.screencanv = touchcon.init( document.getElementById("puthere") );
-addbutton(document.body,"Start/Pause",runnes);
-
-
-
-
-
-function windowactivething(){
-
-    let hidden, visibilityChange; 
-    if (typeof document.hidden !== "undefined") {
-        hidden = "hidden";
-        visibilityChange = "visibilitychange";
-    } else if (typeof document.mozHidden !== "undefined") {
-        hidden = "mozHidden";
-        visibilityChange = "mozvisibilitychange";
-    } else if (typeof document.msHidden !== "undefined") {
-        hidden = "msHidden";
-        visibilityChange = "msvisibilitychange";
-    } else if (typeof document.webkitHidden !== "undefined") {
-        hidden = "webkitHidden";
-        visibilityChange = "webkitvisibilitychange";
+function setgain(gain) {
+    if(gain!==undefined){
+        nesvars.audio.usergain = gain;
     }
-    
-    
-    handleVisibilityChange = (event) => {
-        //console.log(event);
-        if (document[hidden]) {
-            //console.log("hidey");
+    if(nesvars.audio.node_gain!==undefined){
+        if(nesvars.audio.muted===true){
+            nesvars.audio.node_gain.gain.value = 0;
         } else {
-            //console.log("show");
+            nesvars.audio.node_gain.gain.value = nesvars.audio.usergain;
         }
-    };
-    
-    document.addEventListener(visibilityChange, handleVisibilityChange  );
-}
-//windowactivething();//don't think this even works.. todo.
-
-
-
-
-
-function screenlog(message, tojson = false, clear = false){
-    if(tojson===true){
-        message = JSON.stringify(message);
     }
-    const el = document.getElementById("tommy");
-    if(clear){
-        el.innerText = "";
-    }
-    el.innerText+=message;
 }
 
+
+
+class nes{
+
+    configurenes(drawnes, getinputseveryframe){
+        nesvars.drawnes = drawnes;
+        nesvars.getinputs = getinputseveryframe;
+    }
+
+    get palettebuffer() {
+        return getNESpalettebuffer();
+    }
+
+    get bufferunderruns() {
+        return underruns;
+    }
+
+    get cpumem() {
+        return nesvars.cpumem;
+    }
+
+    get ppumem() {
+        return nesvars.ppumem;
+    }
+
+    async loadrom(romarraybuffer){
+        //todo - save data..
+
+        await createNES(romarraybuffer);
+    }
+
+    async runnes(){
+        await runnes();
+    }
+
+    setgain(value){
+        setgain(value);
+    }
+
+
+}
+export default new nes();
+
+    }
+    return fades;
+}
+
+*/
