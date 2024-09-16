@@ -383,9 +383,3 @@ class nes{
 
 }
 export default new nes();
-
-    }
-    return fades;
-}
-
-*/
