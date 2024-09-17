@@ -231,7 +231,7 @@ const loadfromurl = async(theurl) => {
 
 
 const fetchnesfile = async(event) => {
-    console.log(event);
+    //console.log(event);
     await loadfromurl(event.target.attributes[0].value);
 }
 
@@ -253,7 +253,7 @@ const nesel = document.getElementById("nes");
 touchcon.config( null, nesel );
 addbutton( nesel ,"Fullscreen",touchcon.toggleFullscreen);
 addfileselect( nesel ,passedromfile);
-const startbutton = addbutton(nesel, "Start/Pause", nes.runnes);
+const startbutton = addbutton(nesel, "Start Emulation", nes.runnes);
 
 nes.configurenes(touchcon.drawNES,getinputs,[startbutton]);
 
@@ -263,7 +263,7 @@ if(debug===true){
     nesel.appendChild(inputurlbox);
     
     const loadfromurlbutton = async(event) => {
-        console.log(event);
+        //console.log(event);
         await loadfromurl(inputurlbox.value);
     }
     
@@ -302,8 +302,8 @@ roms.roms.forEach( (rom) => {
     ul.appendChild(li);
     
     li.appendChild(getelement("h1",rom.name));
-    const romloc = rom.github===true?rom.filename:"/roms/"+rom.filename;
-    const arcloc = rom.github===true?rom.archive:"/roms/"+rom.archive;
+    const romloc = rom.filename.slice(0,4)==="http"?rom.filename:"/roms/"+rom.filename;
+    const arcloc = rom.archive.slice(0,4)==="http"?rom.archive:"/roms/"+rom.archive;
 
     const attrib = document.createAttribute("romname");
     attrib.value = romloc;
@@ -315,7 +315,7 @@ roms.roms.forEach( (rom) => {
         li.appendChild(getanchorinelement("p", rom.link));
     }
     li.appendChild(getanchorinelement("p", "Download Archive/License Information", arcloc ));
-    li.appendChild(getanchorinelement("p", "Download .nes file", romloc));
+    //li.appendChild(getanchorinelement("p", "Download .nes file", romloc));
 
 
 
