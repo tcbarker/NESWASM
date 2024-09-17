@@ -141,8 +141,9 @@ function frameadvance(){
         sectionstosend.push( nesvars.audio.aubuffer.subarray(startsection,startsection+nesvars.audio.aubufsectionlength) );
     }
     nesvars.nes_framenumber++;
-    nesvars.audio.node_nes.port.postMessage( {frame:nesvars.nes_framenumber, sections:sectionstosend} );
-
+    if(nesvars.audio.node_nes!==undefined){
+        nesvars.audio.node_nes.port.postMessage( {frame:nesvars.nes_framenumber, sections:sectionstosend} );
+    }
 
     nesvars.video_imagedata.data.set(Module.HEAPU8.subarray(nesvars.wasm_screenptr, nesvars.wasm_screenptr+nesvars.sizeofscreenarray));
     nesvars.video_ctx.putImageData(nesvars.video_imagedata,0,0);
@@ -191,31 +192,20 @@ async function setupaudio(create) {
 
     nesvars.audio.nesnodemessage = { 0:{}, 1:{} };
 
-
-    const addstub = ()=>{
-        nesvars.audio.node_nes = { port:{postMessage:function(buf){
-            //do something else??
-        }}};
-    }
-
     if(nesvars.audio.ctx.audioWorklet===undefined){
         const message = "audioWorklet unsupported. https issues??"
-        addstub();
         debugger;
         return;
     }
 
 
-
     if(nesvars.audio.node_gain===undefined){
-        //create, if we can.
+        //create, if we can. no way to check if already done? what happens if it has???
         await nesvars.audio.ctx.audioWorklet.addModule("nesaudio.js")
         .then( resolved=>{}, rejected=>{
             console.log(rejected);
-            addstub();
             return;
         });
-        //no way to check if already done? what happens if it has???
     
         
         nesvars.audio.node_hipass = new BiquadFilterNode(nesvars.audio.ctx);
@@ -314,7 +304,10 @@ nesvars.video_canvas.setAttributeNode(heightattrib);
 
 
 
-const runnes = async (event) => {
+const nesisrunningevent = new CustomEvent("nesrunstate", { detail: true });
+const nesstoppedevent = new CustomEvent("nesrunstate", { detail: false });
+
+const runnes = async () => {
     if(nesvars.nes_running===undefined){
         await setupaudio(true);
         nesvars.nes_running = setInterval(frameadvance, 1000/(nesvars.nes_refresh));
@@ -326,7 +319,18 @@ const runnes = async (event) => {
         nesvars.audio.muted = true;
     }
     setgain();
+    nesvars.eventreceivers.forEach( element => {
+        if(nesvars.nes_running===undefined){
+            element.dispatchEvent(nesstoppedevent);
+        } else {
+            element.dispatchEvent(nesisrunningevent);
+        }
+    });
 }
+
+
+
+
 
 function setgain(gain) {
     if(gain!==undefined){
@@ -345,9 +349,10 @@ function setgain(gain) {
 
 class nes{
 
-    configurenes(drawnes, getinputseveryframe){
+    configurenes(drawnes, getinputseveryframe, eventreceivers = []){
         nesvars.drawnes = drawnes;
         nesvars.getinputs = getinputseveryframe;
+        nesvars.eventreceivers = eventreceivers;
     }
 
     get palettebuffer() {
@@ -372,7 +377,8 @@ class nes{
         await createNES(romarraybuffer);
     }
 
-    async runnes(){
+    async runnes(event){
+        //console.log(event);
         await runnes();
     }
 

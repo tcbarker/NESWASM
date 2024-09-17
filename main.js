@@ -162,7 +162,9 @@ function registercontrollers(){
                 return;
             }
             if(setinput(event.key,true)){
-                event.preventDefault();
+                if(!debug){
+                    event.preventDefault();
+                }
             }
         },
         true,
@@ -174,7 +176,9 @@ function registercontrollers(){
                 return;
             }
             if(setinput(event.key,false)){
-                event.preventDefault();
+                if(!debug){
+                    event.preventDefault();
+                }
             }
         },
         true,
@@ -211,14 +215,24 @@ const passedromfile = async(event) => {
 }
 
 
-const fetchnesfile = async(event) => {
-    console.log(event);
-    const request = new Request("/roms/"+event.target.attributes[0].value, {
+
+const loadfromurl = async(theurl) => {
+    const request = new Request(theurl, {
         method: "GET",
     });
-    const response = await fetch(request);
-    const rom = await new Response(response.body).arrayBuffer();
-    await nes.loadrom(rom);
+    try {
+        const response = await fetch(request);
+        const rom = await new Response(response.body).arrayBuffer();
+        await nes.loadrom(rom);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+
+const fetchnesfile = async(event) => {
+    console.log(event);
+    await loadfromurl(event.target.attributes[0].value);
 }
 
 
@@ -233,39 +247,75 @@ function getinputs(){//runs at start of every frame..
 
 
 
-nes.configurenes(touchcon.drawNES,getinputs);
 
 
 const nesel = document.getElementById("nes");
 touchcon.config( null, nesel );
 addbutton( nesel ,"Fullscreen",touchcon.toggleFullscreen);
 addfileselect( nesel ,passedromfile);
-addbutton(nesel, "Start/Pause", nes.runnes);
+const startbutton = addbutton(nesel, "Start/Pause", nes.runnes);
+
+nes.configurenes(touchcon.drawNES,getinputs,[startbutton]);
+
+
+if(debug===true){
+    const inputurlbox = getelement("input", null, [{name:"type", val:"text"}, {name:"placeholder", val:"rom url (note that cors will do its job and block this unless the receiving server is configured.)"},]);
+    nesel.appendChild(inputurlbox);
+    
+    const loadfromurlbutton = async(event) => {
+        console.log(event);
+        await loadfromurl(inputurlbox.value);
+    }
+    
+    const loadurlbutton = addbutton(nesel, "Load from URL", loadfromurlbutton);
+}
+
+
+
+
+
+
+startbutton.addEventListener(
+    "nesrunstate",
+    (e) => {
+        if(e.detail===true){
+            e.target.innerText="Pause Emulation";
+        } else {
+            e.target.innerText="Start Emulation";
+        }
+    },
+    false,
+);
+
+
+
 
 
 const ul = getelement("ul");
 nesel.appendChild(ul);
+
+
+
 
 roms.roms.forEach( (rom) => {
     const li = getelement("li");
     ul.appendChild(li);
     
     li.appendChild(getelement("h1",rom.name));
+    const romloc = rom.github===true?rom.filename:"/roms/"+rom.filename;
+    const arcloc = rom.github===true?rom.archive:"/roms/"+rom.archive;
 
     const attrib = document.createAttribute("romname");
-    attrib.value = rom.filename;
+    attrib.value = romloc;
     addbutton(li, "Play in emulator",fetchnesfile).setAttributeNode(attrib);
-
 
     li.appendChild(getelement("p","by "+rom.developer));
     li.appendChild(getelement("p","License: "+rom.license));
-    rom.link.forEach( (link) => {
-        li.appendChild(getanchorinelement("p", link));
-    });
-    if(rom.archive!==null){
-        li.appendChild(getanchorinelement("p", "Download Archive/License Information", "/roms/"+rom.archive ));
+    if(rom.link!==null){
+        li.appendChild(getanchorinelement("p", rom.link));
     }
-    li.appendChild(getanchorinelement("p", "Download .nes file", "/roms/"+rom.filename));
+    li.appendChild(getanchorinelement("p", "Download Archive/License Information", arcloc ));
+    li.appendChild(getanchorinelement("p", "Download .nes file", romloc));
 
 
 

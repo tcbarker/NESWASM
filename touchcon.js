@@ -2,18 +2,22 @@
 
 
 
-let padstate = 0;
 
-const touchmap = {};
+
 
 const touchcontroller = {
-    touchenabled:true,
-    screenratio:0.6,
     width:256,
     height:240,
+    screenratio:0.6,
     controls:[],
     screencanv:{}
 };
+
+function resettouches(){
+    touchcontroller.padstate = 0;
+    touchcontroller.touchmap = {};
+}
+resettouches();
 
 
 const btns = {
@@ -29,7 +33,7 @@ const btns = {
 
 function whichbuttonistouchon(touchindex){
     for(let i = 0;i<5;i++){
-        if(touchmap[i]===touchindex){
+        if(touchcontroller.touchmap[i]===touchindex){
             return i;
         }
     }
@@ -46,7 +50,7 @@ function updatedpad(touch){
     const lengthy = touch.clientY - control.y;
     const lengthsquared = Math.pow(lengthx,2) + Math.pow(lengthy,2);
 
-    padstate &= 0x0F;
+    touchcontroller.padstate &= 0x0F;
     if(lengthsquared < deadzonesquared){
         return;
     }
@@ -54,16 +58,16 @@ function updatedpad(touch){
     if(Math.abs(lengthy)>minaxis){
 
         if (lengthy<0){
-            padstate |= 1<<4;//up
+            touchcontroller.padstate |= 1<<4;//up
         } else {
-            padstate |= 1<<5;//down
+            touchcontroller.padstate |= 1<<5;//down
         }
     }
     if(Math.abs(lengthx)>minaxis){
         if (lengthx<0){
-            padstate |= 1<<6;//left
+            touchcontroller.padstate |= 1<<6;//left
         } else {
-            padstate |= 1<<7;//right
+            touchcontroller.padstate |= 1<<7;//right
         }
     }
 }
@@ -78,7 +82,7 @@ function getnearestbutton(touch){
         const lengthsquared = Math.pow(lengthx,2) + Math.pow(lengthy,2);
         if(lengthsquared<shortest){
             if(lengthsquared < Math.pow(control.r,2) ){
-                if(touchmap[index]===undefined){
+                if(touchcontroller.touchmap[index]===undefined){
                     shortest = lengthsquared;
                     foundindex = index;
                 }
@@ -87,9 +91,9 @@ function getnearestbutton(touch){
     });
     if(foundindex!==null){
         if(foundindex!==5){
-            padstate|=1<<foundindex;
+            touchcontroller.padstate|=1<<foundindex;
         }
-        touchmap[foundindex]=touch.identifier;
+        touchcontroller.touchmap[foundindex]=touch.identifier;
     }
     return foundindex;
 }
@@ -98,6 +102,11 @@ function getnearestbutton(touch){
 
 
 const handletouchevent = (event) =>{
+    if(document.fullscreenElement!==touchcontroller.canvas){
+        touchcontroller.touchenabled = true;
+        toggleFullscreen();
+        return;
+    }
     event.preventDefault();
     Array.prototype.forEach.call( event.changedTouches, (touch) =>{
         switch (event.type){
@@ -106,10 +115,10 @@ const handletouchevent = (event) =>{
                 const buttontouchison = whichbuttonistouchon(touch.identifier);
                 if(buttontouchison!==null){
                     if(buttontouchison===btns["dpad"]){
-                        padstate &= 0x0F;
+                        touchcontroller.padstate &= 0x0F;
                     }
-                    padstate&= ~(1<<buttontouchison);
-                    touchmap[buttontouchison] = undefined;
+                    touchcontroller.padstate&= ~(1<<buttontouchison);
+                    touchcontroller.touchmap[buttontouchison] = undefined;
                 }
                 return;
                 
@@ -130,7 +139,7 @@ const handletouchevent = (event) =>{
                 return;
         }
     } );
-    //console.log({padstate});
+    //console.log(touchcontroller.padstate);
 };
 
 
@@ -152,32 +161,15 @@ function drawthing (ctx, thing, colour, coords){
 
 function createcontroller(appendto = document.body, options = null){
 
-    if(options!==null){
-        //enabletouch, screenratio = {...options};
-
-        if(options.width!==undefined){
-            touchcontroller.width = options.width;
-            touchcontroller.height = options.height;
-        }
-
-        if(options.screenratio!==undefined){
-            touchcontroller.screenratio = options.screenratio;
-        }
-        
-        if(options.enabletouch!==touchcontroller.touchenabled){
-            touchcontroller.touchenabled = options.enabletouch;
-        }
-    }
-
-
-    //may be able to exit early??
-
+    touchcontroller.width = options?.width?options.width:256;
+    touchcontroller.height = options?.height?options.height:240;
+    touchcontroller.screenratio = options?.screenratio?options.screenratio:0.6;
 
     const infullscreen = document.fullscreenElement===touchcontroller.canvas;
     const htmlelement = document.querySelector("html");
     const width = infullscreen?htmlelement.clientWidth:touchcontroller.width;//screen.width
     const height = infullscreen?htmlelement.clientHeight:touchcontroller.height;
-    const screenratio = infullscreen?touchcontroller.screenratio:1;
+    const screenratio = (infullscreen && touchcontroller.touchenabled)?touchcontroller.screenratio:1;
 
     const nesaspect = 256/240;
     const aspect = width/height;
@@ -202,6 +194,27 @@ function createcontroller(appendto = document.body, options = null){
         touchcontroller.screencanv.ctx = touchcontroller.canvas.getContext("2d");
         touchcontroller.canvas.addEventListener('fullscreenchange',createcontroller);
         touchcontroller.canvas.addEventListener('fullscreenerror',createcontroller);
+        touchcontroller.canvas.addEventListener('touchstart',handletouchevent);
+        touchcontroller.canvas.addEventListener('touchmove',handletouchevent);
+        touchcontroller.canvas.addEventListener('touchend',handletouchevent);
+        touchcontroller.canvas.addEventListener('touchcancel',handletouchevent);
+
+        screen.orientation.addEventListener("change", function(event) {
+            createcontroller();
+        });
+
+        /*window.addEventListener("resize", (event) => {
+            createcontroller();
+        });*/
+
+        /*let portrait = window.matchMedia("(orientation: portrait)");
+        portrait.addEventListener("change", function(e) {
+            if(e.matches) {
+                // Portrait mode
+            } else {
+                // Landscape
+            }
+        })*/
     }
 
     if(touchcontroller.portrait){
@@ -258,25 +271,27 @@ function createcontroller(appendto = document.body, options = null){
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["bbut"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["start"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["select"]]);
-        if(!touchcontroller.eventsregistered){
-            touchcontroller.canvas.addEventListener('touchstart',handletouchevent);
-            touchcontroller.canvas.addEventListener('touchmove',handletouchevent);
-            touchcontroller.canvas.addEventListener('touchend',handletouchevent);
-            touchcontroller.canvas.addEventListener('touchcancel',handletouchevent);
-            touchcontroller.eventsregistered = true;
-        }
     } else {
-        if(touchcontroller.eventsregistered){
-            touchcontroller.canvas.removeEventListener('touchstart',handletouchevent);
-            touchcontroller.canvas.removeEventListener('touchmove',handletouchevent);
-            touchcontroller.canvas.removeEventListener('touchend',handletouchevent);
-            touchcontroller.canvas.removeEventListener('touchcancel',handletouchevent);
-            touchcontroller.eventsregistered = false;
-        }
+        resettouches();
     }
     return touchcontroller.canvas;
 }
 
+
+function toggleFullscreen() {
+    if(document.fullscreenEnabled){
+        if (!document.fullscreenElement) {
+            touchcontroller.canvas.requestFullscreen().catch((err) => {
+                console.log(err);
+                return false
+            });
+            return true;
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    return false;
+}
 
 
 
@@ -284,56 +299,21 @@ function createcontroller(appendto = document.body, options = null){
 class touchcon{
 
     get state(){
-        return padstate;
+        return touchcontroller.padstate;
     }
-
-
 
     config(options , appendto = null ){
         if(createcontroller(appendto, options)===null){
             return false;
         }
-
-        screen.orientation.addEventListener("change", function(e) {
-            createcontroller();
-        });
-
-        
-        addEventListener("resize", (event) => {
-            createcontroller();
-        });
-        
-        
-        /*let portrait = window.matchMedia("(orientation: portrait)");
-        portrait.addEventListener("change", function(e) {
-            if(e.matches) {
-                // Portrait mode
-            } else {
-                // Landscape
-            }
-        })*/
-
         return true;
     }
 
-
- 
-
-    toggleFullscreen() {
-        if(document.fullscreenEnabled){
-            if (!document.fullscreenElement) {
-                touchcontroller.canvas.requestFullscreen().catch((err) => {
-                    console.log(err);
-                    return false
-                });
-                return true;
-            } else {
-                document.exitFullscreen();
-            }
-        }
-        return false;
+    toggleFullscreen(event){
+        touchcontroller.touchenabled = false;
+        //or set touchenabled based on event data?
+        return toggleFullscreen();
     }
-
 
     drawNES(nescanvas){
         touchcontroller.screencanv.ctx
@@ -343,8 +323,6 @@ class touchcon{
             touchcontroller.screencanv.coords.w,
             touchcontroller.screencanv.coords.h);
     }
-
-
 }
 
 export default new touchcon();
