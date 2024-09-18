@@ -271,43 +271,42 @@ function getinputs(){//runs at start of every frame..
 const nesel = document.getElementById("nes");
 await touchcon.config( null, nesel );
 
-//todo - send event to fullscreen button!!
-const fullscreenbutton = addbutton( nesel ,"Fullscreen",touchcon.toggleFullscreen);
-fullscreenbutton.style.display = "none";
-
 
 addfileselect( nesel ,passedromfile);
-const startbutton = addbutton(nesel, "Start Emulation", nes.runnes);
+
+const startbutton = addbutton(nesel, "", nes.runnes);
+startbutton.style.display = "none";
 
 
-const volslider = getelement("input",null,[{name:"type",val:"range"},
-{name:"min",val:"-4000"},
-{name:"max",val:"1200"},
-{name:"value",val:"0"},
+
+const volslider = getelement("input",null,[
+                                    {name:"type",val:"range"},
+                                    {name:"min",val:"-4000"},
+                                    {name:"max",val:"1200"},
+                                    {name:"value",val:"0"},
+                                    {name:"name",val:"volslider"},
 ]);
 nesel.appendChild(volslider);
 
-const displaydb = getelement("p","0 dB");
+const displaydb = getelement("label","Volume (0 dB)", [{name:"for",val:"volslider"}]);
 nesel.appendChild(displaydb);
 
 
 const volchangeeventhandler = (event) => {
     //const db = 20*Math.log10(gainratio);
     const dbs = event.target.value/100;
-    displaydb.innerText = (dbs>0?"+":"")+dbs.toString()+" dB";
+    displaydb.innerText = "Volume ("+(dbs>0?" +":"")+dbs.toString()+" dB)";
     nes.setgain((10)**(dbs/20));
 };
 
 volslider.addEventListener("change", volchangeeventhandler);
 
 
-//mute button - todo
-
 
 
 
     
-nes.configurenes(touchcon.drawNES,getinputs,[startbutton, fullscreenbutton]);
+nes.configurenes(touchcon.drawNES,getinputs,[startbutton]);
 
 
 if(debug===true){
@@ -330,27 +329,29 @@ if(debug===true){
 startbutton.addEventListener(
     "nesrunstate",
     (e) => {
-        if(e.detail===true){
-            e.target.innerText="Pause Emulation";
-        } else {
-            e.target.innerText="Start Emulation";
+        switch(e.detail){
+            case null:
+                e.target.style.display = "none";
+                touchcon.setallowfullscreen(false);
+                break;
+            
+            case false:
+                e.target.style.display = "initial";
+                e.target.innerText="Resume Emulation";
+                touchcon.setallowfullscreen(false);
+                break;
+            
+            case true:
+                e.target.style.display = "initial";
+                e.target.innerText="Pause Emulation";
+                touchcon.setallowfullscreen(true);
+                break;
         }
     },
     false,
 );
 
 
-fullscreenbutton.addEventListener(
-    "nesrunstate",
-    (e) => {
-        if(e.detail===true){
-            e.target.style.display="initial";
-        } else {
-            e.target.style.display="none";
-        }
-    },
-    false,
-);
 
 
 

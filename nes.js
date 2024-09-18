@@ -306,6 +306,7 @@ nesvars.video_canvas.setAttributeNode(heightattrib);
 
 const nesisrunningevent = new CustomEvent("nesrunstate", { detail: true });
 const nesstoppedevent = new CustomEvent("nesrunstate", { detail: false });
+const nesinvalidevent = new CustomEvent("nesrunstate", { detail: null });
 
 const runnes = async () => {
     if(nesvars.nes_running===undefined){
@@ -320,10 +321,14 @@ const runnes = async () => {
     }
     setgain();
     nesvars.eventreceivers.forEach( element => {
-        if(nesvars.nes_running===undefined){
-            element.dispatchEvent(nesstoppedevent);
+        if(nesvars.wasm_romfileptr===undefined){
+            element.dispatchEvent(nesinvalidevent);
         } else {
-            element.dispatchEvent(nesisrunningevent);
+            if(nesvars.nes_running===undefined){
+                element.dispatchEvent(nesstoppedevent);
+            } else {
+                element.dispatchEvent(nesisrunningevent);
+            }
         }
     });
 }

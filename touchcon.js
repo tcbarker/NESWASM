@@ -9,6 +9,7 @@ const touchcontroller = {
     width:256,
     height:240,
     screenratio:0.6,
+    allowfullscreen:false,
     screenLock:null,
     controls:[],
     screencanv:{}
@@ -103,12 +104,12 @@ function getnearestbutton(touch){
 
 
 const handletouchevent = (event) =>{
+    event.preventDefault();
     if(document.fullscreenElement!==touchcontroller.canvas){
         touchcontroller.touchenabled = true;
         toggleFullscreen();
         return;
     }
-    event.preventDefault();
     Array.prototype.forEach.call( event.changedTouches, (touch) =>{
         switch (event.type){
             case "touchend":
@@ -200,6 +201,8 @@ async function createcontroller(appendto = document.body, options = null){//even
         touchcontroller.canvas.addEventListener('touchend',handletouchevent);
         touchcontroller.canvas.addEventListener('touchcancel',handletouchevent);
 
+        touchcontroller.canvas.addEventListener('click', toggleFullscreen);
+
         screen.orientation.addEventListener("change", function(event) {
             createcontroller();
         });
@@ -218,13 +221,17 @@ async function createcontroller(appendto = document.body, options = null){//even
         })*/
     }
 
-    if(infullscreen && ("wakeLock" in navigator)){
-        try {
-            touchcontroller.screenLock = await navigator.wakeLock.request("screen");
-        } catch(error) {
-            console.log(error);
+    if(infullscreen){
+        touchcontroller.canvas.style.cursor = "none";
+        if("wakeLock" in navigator){
+            try {
+                touchcontroller.screenLock = await navigator.wakeLock.request("screen");
+            } catch(error) {
+                console.log(error);
+            }
         }
     } else {
+        touchcontroller.canvas.style.cursor = "auto";
         if(touchcontroller.screenLock!==null){
             await touchcontroller.screenLock.release();
             touchcontroller.screenLock = null;
@@ -292,14 +299,19 @@ async function createcontroller(appendto = document.body, options = null){//even
 }
 
 
-function toggleFullscreen() {
+function toggleFullscreen(event) {
+    if(event!==undefined){
+        touchcontroller.touchenabled = false;
+    }
     if(document.fullscreenEnabled){
-        if (!document.fullscreenElement) {
-            touchcontroller.canvas.requestFullscreen().catch((err) => {
-                console.log(err);
-                return false
-            });
-            return true;
+        if(!document.fullscreenElement){
+            if(touchcontroller.allowfullscreen){
+                touchcontroller.canvas.requestFullscreen().catch((err) => {
+                    console.log(err);
+                    return false
+                });
+                return true;
+            }
         } else {
             document.exitFullscreen();
         }
@@ -323,10 +335,8 @@ class touchcon{
         return true;
     }
 
-    toggleFullscreen(event){
-        touchcontroller.touchenabled = false;
-        //or set touchenabled based on event data?
-        return toggleFullscreen();
+    setallowfullscreen(allow){
+        touchcontroller.allowfullscreen = allow;
     }
 
     drawNES(nescanvas){
