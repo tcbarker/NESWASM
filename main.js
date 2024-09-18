@@ -269,12 +269,45 @@ function getinputs(){//runs at start of every frame..
 
 
 const nesel = document.getElementById("nes");
-touchcon.config( null, nesel );
-addbutton( nesel ,"Fullscreen",touchcon.toggleFullscreen);
+await touchcon.config( null, nesel );
+
+//todo - send event to fullscreen button!!
+const fullscreenbutton = addbutton( nesel ,"Fullscreen",touchcon.toggleFullscreen);
+fullscreenbutton.style.display = "none";
+
+
 addfileselect( nesel ,passedromfile);
 const startbutton = addbutton(nesel, "Start Emulation", nes.runnes);
 
-nes.configurenes(touchcon.drawNES,getinputs,[startbutton]);
+
+const volslider = getelement("input",null,[{name:"type",val:"range"},
+{name:"min",val:"-4000"},
+{name:"max",val:"1200"},
+{name:"value",val:"0"},
+]);
+nesel.appendChild(volslider);
+
+const displaydb = getelement("p","0 dB");
+nesel.appendChild(displaydb);
+
+
+const volchangeeventhandler = (event) => {
+    //const db = 20*Math.log10(gainratio);
+    const dbs = event.target.value/100;
+    displaydb.innerText = (dbs>0?"+":"")+dbs.toString()+" dB";
+    nes.setgain((10)**(dbs/20));
+};
+
+volslider.addEventListener("change", volchangeeventhandler);
+
+
+//mute button - todo
+
+
+
+
+    
+nes.configurenes(touchcon.drawNES,getinputs,[startbutton, fullscreenbutton]);
 
 
 if(debug===true){
@@ -306,6 +339,18 @@ startbutton.addEventListener(
     false,
 );
 
+
+fullscreenbutton.addEventListener(
+    "nesrunstate",
+    (e) => {
+        if(e.detail===true){
+            e.target.style.display="initial";
+        } else {
+            e.target.style.display="none";
+        }
+    },
+    false,
+);
 
 
 

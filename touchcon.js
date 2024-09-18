@@ -9,6 +9,7 @@ const touchcontroller = {
     width:256,
     height:240,
     screenratio:0.6,
+    screenLock:null,
     controls:[],
     screencanv:{}
 };
@@ -159,7 +160,7 @@ function drawthing (ctx, thing, colour, coords){
 
 
 
-function createcontroller(appendto = document.body, options = null){
+async function createcontroller(appendto = document.body, options = null){//event will be passed, but doesn't matter.
 
     touchcontroller.width = options?.width?options.width:256;
     touchcontroller.height = options?.height?options.height:240;
@@ -203,9 +204,9 @@ function createcontroller(appendto = document.body, options = null){
             createcontroller();
         });
 
-        /*window.addEventListener("resize", (event) => {
+        window.addEventListener("resize", (event) => {
             createcontroller();
-        });*/
+        });
 
         /*let portrait = window.matchMedia("(orientation: portrait)");
         portrait.addEventListener("change", function(e) {
@@ -215,6 +216,19 @@ function createcontroller(appendto = document.body, options = null){
                 // Landscape
             }
         })*/
+    }
+
+    if(infullscreen && ("wakeLock" in navigator)){
+        try {
+            touchcontroller.screenLock = await navigator.wakeLock.request("screen");
+        } catch(error) {
+            console.log(error);
+        }
+    } else {
+        if(touchcontroller.screenLock!==null){
+            await touchcontroller.screenLock.release();
+            touchcontroller.screenLock = null;
+        }
     }
 
     if(touchcontroller.portrait){
@@ -232,12 +246,12 @@ function createcontroller(appendto = document.body, options = null){
         if(neswidthp/width > 0.8){
             padinset = width/4;
         }
-        touchcontroller.controls[btns["dpad"]] = { x:padinset, y:height-padinset, r:padinset*0.8 };
-        touchcontroller.controls[btns["abut"]] = { x:(width-padinset)+(padinset/2), y:height-(padinset*0.9), r:padinset*0.4 };
-        touchcontroller.controls[btns["bbut"]] = { x:(width-padinset)-(padinset/2), y:height-(padinset*0.9), r:padinset*0.4 };
+        touchcontroller.controls[btns["dpad"]] = { x:padinset, y:nesheightp+padinset, r:padinset*0.8 };
+        touchcontroller.controls[btns["abut"]] = { x:(width-padinset)+(padinset/2), y:nesheightp+(padinset*0.9), r:padinset*0.4 };
+        touchcontroller.controls[btns["bbut"]] = { x:(width-padinset)-(padinset/2), y:nesheightp+(padinset*0.9), r:padinset*0.4 };
 
-        touchcontroller.controls[btns["select"]] ={ x:(width-padinset)-(padinset/2), y:height-(padinset*1.6), r:padinset*0.3 };
-        touchcontroller.controls[btns["start"]] = { x:(width-padinset)+(padinset/2), y:height-(padinset*1.6), r:padinset*0.3 };
+        touchcontroller.controls[btns["select"]] ={ x:(width-padinset)-(padinset/2), y:nesheightp+(padinset*1.6), r:padinset*0.3 };
+        touchcontroller.controls[btns["start"]] = { x:(width-padinset)+(padinset/2), y:nesheightp+(padinset*1.6), r:padinset*0.3 };
 
     } else {
         //console.log("landscape");
@@ -250,7 +264,7 @@ function createcontroller(appendto = document.body, options = null){
 
         touchcontroller.screencanv.coords = { x:(width-neswidthl)/2, y:0, w:neswidthl, h:nesheightl };
         const padinset = touchcontroller.screencanv.coords.x/2;
-        touchcontroller.controls[btns["dpad"]] = { x:padinset, y:height/2, r:touchcontroller.screencanv.coords.x*0.4 };
+        touchcontroller.controls[btns["dpad"]] = { x:padinset, y:(height/4)*3, r:touchcontroller.screencanv.coords.x*0.4 };
         
         touchcontroller.controls[btns["bbut"]] = { x:width-(padinset*1.5), y:height/2, r:touchcontroller.screencanv.coords.x*0.2 }
         touchcontroller.controls[btns["abut"]] = { x:width-(padinset*0.5), y:height/2, r:touchcontroller.screencanv.coords.x*0.2 }
@@ -302,8 +316,8 @@ class touchcon{
         return touchcontroller.padstate;
     }
 
-    config(options , appendto = null ){
-        if(createcontroller(appendto, options)===null){
+    async config(options , appendto = null ){
+        if(await createcontroller(appendto, options)===null){
             return false;
         }
         return true;
