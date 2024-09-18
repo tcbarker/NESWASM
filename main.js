@@ -1,7 +1,20 @@
 import touchcon from './touchcon.js'
 import nes from './nes.js'
 import nescolours from './nescolours.js'
-import roms from './roms.js'
+import romsdata from './romsdata.js'
+
+
+const romdata = Uint8Array.from(atob(romsdata.data), c => c.charCodeAt(0));
+const romdatastream = new ReadableStream({
+    start(controller) {
+        controller.enqueue(romdata.buffer);
+        controller.close();
+    }
+});
+const ds = new DecompressionStream("gzip");
+const decompstream = romdatastream.pipeThrough(ds);
+let response = new Response(decompstream);
+let allromdata = await response.arrayBuffer();
 
 
 const searchParams = new URLSearchParams(window.location.search);
@@ -235,6 +248,12 @@ const fetchnesfile = async(event) => {
     await loadfromurl(event.target.attributes[0].value);
 }
 
+const getfromdata = async (event) => {
+    const romref = romsdata.roms[event.target.attributes[0].value];
+    const rom = allromdata.slice(romref.dataoffset,romref.dataoffset+romref.size);
+    await nes.loadrom(rom);
+}
+
 
 function getinputs(){//runs at start of every frame..
     if(debug){
@@ -297,30 +316,33 @@ nesel.appendChild(ul);
 
 
 
-roms.roms.forEach( (rom) => {
+romsdata.roms.forEach( (rom, index) => {
     const li = getelement("li");
     ul.appendChild(li);
     
     li.appendChild(getelement("h1",rom.name));
-    const romloc = rom.filename.slice(0,4)==="http"?rom.filename:"/roms/"+rom.filename;
-    const arcloc = rom.archive.slice(0,4)==="http"?rom.archive:"/roms/"+rom.archive;
+    //const romloc = rom.filename.slice(0,4)==="http"?rom.filename:"/roms/"+rom.filename;
+    //const arcloc = rom.archive.slice(0,4)==="http"?rom.archive:"/roms/"+rom.archive;
 
     const attrib = document.createAttribute("romname");
-    attrib.value = romloc;
-    addbutton(li, "Play in emulator",fetchnesfile).setAttributeNode(attrib);
+    attrib.value = index;//romloc;
+    //addbutton(li, "Play in emulator",fetchnesfile).setAttributeNode(attrib);
+    addbutton(li, "Play in emulator",getfromdata).setAttributeNode(attrib);
 
     li.appendChild(getelement("p","by "+rom.developer));
-    li.appendChild(getelement("p","License: "+rom.license));
+    //li.appendChild(getelement("p","License: "+rom.license));
     if(rom.link!==null){
         li.appendChild(getanchorinelement("p", rom.link));
     }
-    li.appendChild(getanchorinelement("p", "Download Archive/License Information", arcloc ));
+    //li.appendChild(getanchorinelement("p", "Download Archive/License Information", arcloc ));
     //li.appendChild(getanchorinelement("p", "Download .nes file", romloc));
 
 
 
 });
 
+
+nesel.appendChild(getanchorinelement("p", "View License Information", "Licenses.txt" ));
 
 
 
