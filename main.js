@@ -1,21 +1,6 @@
 import touchcon from './touchcon.js'
 import nes from './nes.js'
 import nescolours from './nescolours.js'
-import romsdata from './romsdata.js'
-
-
-const romdata = Uint8Array.from(atob(romsdata.data), c => c.charCodeAt(0));
-const romdatastream = new ReadableStream({
-    start(controller) {
-        controller.enqueue(romdata.buffer);
-        controller.close();
-    }
-});
-const ds = new DecompressionStream("gzip");
-const decompstream = romdatastream.pipeThrough(ds);
-let response = new Response(decompstream);
-let allromdata = await response.arrayBuffer();
-
 
 const searchParams = new URLSearchParams(window.location.search);
 const debug = searchParams.has("debug");
@@ -229,6 +214,40 @@ const passedromfile = async(event) => {
 
 
 
+let romsdata;
+
+const loadjson = async() => {
+    const request = new Request("roms.json", {
+        method: "GET",
+    });
+    try {
+        const response = await fetch(request);
+        romsdata = JSON.parse(await response.text());
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+await loadjson();
+
+const loadfrombase64 = async (event) =>{
+    const romref = romsdata.roms[event.target.attributes[0].value];
+
+    const romdata = Uint8Array.from(atob(romref.romdata), c => c.charCodeAt(0));
+    const romdatastream = new ReadableStream({
+        start(controller) {
+            controller.enqueue(romdata.buffer);
+            controller.close();
+        }
+    });
+    const ds = new DecompressionStream("gzip");
+    const decompstream = romdatastream.pipeThrough(ds);
+    let response = new Response(decompstream);
+    const rom = await response.arrayBuffer();
+    await nes.loadrom(rom);
+}
+
+
 const loadfromurl = async(theurl) => {
     const request = new Request(theurl, {
         method: "GET",
@@ -299,7 +318,7 @@ const volchangeeventhandler = (event) => {
     nes.setgain((10)**(dbs/20));
 };
 
-volslider.addEventListener("change", volchangeeventhandler);
+volslider.addEventListener("input", volchangeeventhandler);
 
 
 
@@ -373,13 +392,13 @@ romsdata.roms.forEach( (rom, index) => {
     const attrib = document.createAttribute("romname");
     attrib.value = index;//romloc;
     //addbutton(li, "Play in emulator",fetchnesfile).setAttributeNode(attrib);
-    addbutton(li, "Play in emulator",getfromdata).setAttributeNode(attrib);
+    addbutton(li, "Play it now!",loadfrombase64).setAttributeNode(attrib);
 
     li.appendChild(getelement("p","by "+rom.developer));
-    //li.appendChild(getelement("p","License: "+rom.license));
     if(rom.link!==null){
         li.appendChild(getanchorinelement("p", rom.link));
     }
+    li.appendChild(getelement("pre","License: "+rom.license));
     //li.appendChild(getanchorinelement("p", "Download Archive/License Information", arcloc ));
     //li.appendChild(getanchorinelement("p", "Download .nes file", romloc));
 
