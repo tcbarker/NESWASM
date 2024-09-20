@@ -10,6 +10,7 @@
         <div id="maingrid">
             <div>
                 <div id="nes"></div>
+                <div id="gamepads"></div>
                 <div id=status>Downloading...</div>
                 <div id=spinner style=overflow:visible>Spinnin and that.</div>
                 <progress hidden id=progress max=100 value=0></progress>
@@ -21,10 +22,19 @@
             </div>
             <div>
                 <h1>????: a Famicom/NES Emulator</h1>
+                <h2>How do I play it!?</h2>
+                <p>Click a game from the list below!</p>
                 <h2>About</h2>
                 <p>This is an emulator of the Nintendo Famicom/NES, allowing you to run software made for these platforms within a web browser, using keyboard, game pad, or touch screen for input. It is work in progress, will not run everything, and is lacking accuracy in some areas. To run software, you can load a file from your device (in the usual iNes format), or choose from one of the legally permitted ones below.</p>
                 <h2>Instructions</h2>
-                <p>The keyboard keys are mapped as: arrow/cursor keys and WASD as the NES d-pad, and ZXCV and Space, Enter, Q, E as the NES keys: A, B, Select, Start. All of these currently map to player 1, as do the touch controls and the game pad controls. Adding configuration for these is coming soon. Load something, then switch to full screen by pressing on the small screen.</p>
+                <p>Load something, then switch to full screen by pressing on the small screen. Touch controls are on-screen. The keyboard keys are mapped as:</p>
+                <ul>
+                    <li>NES "+Control Pad" : Arrow/Cursor Keys / WASD</li>
+                    <li>NES "A" button : X / Space</li>
+                    <li>NES "B" button : Z / Enter</li>
+                    <li>NES "Start" button : V / E</li>
+                    <li>NES "Select" button : C / Q</li>
+                </ul>
                 <div id="roms"></div>
             </div>
         </div>

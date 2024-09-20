@@ -16,7 +16,7 @@
 /* :root = same as html, but higher specificity,
          html being the root element  */
 :root {
-    font-size: 11pt; /* rem is relative to this  */
+    font-size: 16pt; /* rem is relative to this  */
 
 }
 
@@ -78,6 +78,13 @@ h1 {
     grid-template-columns: 20px auto 4rem;
 }
 
+#gamepads {
+    outline: 1px solid var(--NES07);
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
 #roms {
     display: grid;
     grid-template-columns: repeat(3, 33%);
@@ -103,11 +110,13 @@ h1 {
     background-color: var(--NES22);
     border: 3px solid var(--NES28);
     border-radius: 1rem;
+    font-size: 1.2rem;
 }
 
 a,
 a:visited {
     color: var(--NES33);
+    font-size: 0.7rem;
 }
 
 #roms>div {

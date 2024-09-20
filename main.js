@@ -13,10 +13,10 @@ function gethex(fromthis){
 
 for(let i = 0;i<64;i++){
     document.documentElement.style.setProperty("--NES"+gethex(i), "#"
-        +gethex(nescolours[i*4+0])
-        +gethex(nescolours[i*4+1])
-        +gethex(nescolours[i*4+2])
-    );
+    +gethex(nescolours[i*4+0])
+    +gethex(nescolours[i*4+1])
+    +gethex(nescolours[i*4+2])
+);
 }
 
 
@@ -86,23 +86,26 @@ function addcanvas(addtoelement=null, x, y ){
 
 const romsdata = [];
 
-const keyboardplayernumber = 0;
+let keyboardplayernumber = 0;
 const gamepads = {};
 const inputs = [0,0];
-const padconfigs = [ {name:"xbox 360 wired pad on linux", mapping:{ 0:0,3:1,8:2,9:3,12:4,13:5,14:6,15:7 }}  ];
+const padconfigs = {//A,B,Sel,St,U,D,L,R
+    "Microsoft X-Box 360 pad (STANDARD GAMEPAD Vendor: 045e Product: 028e)":{ 0:0,2:1,8:2,9:3,12:4,13:5,14:6,15:7 },//android
+    "045e-028e-Microsoft X-Box 360 pad":{ 0:0,3:1,8:2,9:3,12:4,13:5,14:6,15:7 },//ubuntu
+    "0c12-0005-Zeroplus PS Vibration Feedback Converter ":{ 2:0,3:1,8:2,11:3,100:4,101:5,102:6,103:7 }//ubuntu - no d pad digital. need analog conversion.
+};
 
 
 function checkpads(){
     for(const gamepad of navigator.getGamepads()){
         if(!gamepad) continue;
-        const player = gamepads[gamepad.index].player;
-        const mappingindex = gamepads[gamepad.index].mappingindex;
-        const mapping = padconfigs[mappingindex].mapping;
-        if(player===null || mapping===undefined){continue;}
         for(const [i, button] of gamepad.buttons.entries()){
-            const index = mapping[i];
+            if(debug && button.pressed){
+                screenlog("button "+i,false,true);
+            }
+            const index = gamepads[gamepad.index].mapping[i];
             if(index!==undefined){
-                setinputfromindex(index,button.pressed,player);
+                setinputfromindex(index,button.pressed, gamepads[gamepad.index].player );
             }
         }
         for(const [i, axis] of gamepad.axes.entries()){
@@ -140,6 +143,9 @@ function setinput(key,pressed){
 }
 
 function setinputfromindex(index,pressed,playerno){
+    if(playerno===null || playerno>1){
+        return;
+    }
     const bit = (1<<index);
     if(pressed===true){
         inputs[playerno] |= bit;
@@ -150,22 +156,26 @@ function setinputfromindex(index,pressed,playerno){
 
 
 function getmappingfromgamepad(gamepad){//todo...
-    console.log(gamepad);
-    for (padconfig in padconfigs){
-        if(padconfig.name==="xbox360"){
-            return 0;
-        }
+    const found = padconfigs[gamepad.id];
+    if(found!==undefined){
+        return found;
     }
-    return 0;
+    console.log({"unknown pad":gamepad.id});
+    return padconfigs["045e-028e-Microsoft X-Box 360 pad"];
 }
 
 
 function gamepadHandler(event, connected) {
     const gamepad = event.gamepad;  
     if (connected) {
-      gamepads[gamepad.index] = { gamepad, player:0, mappingindex:getmappingfromgamepad(gamepad) };
+        const thispad = { gamepad, player:0, mapping:getmappingfromgamepad(gamepad) };
+        const padlistel = document.getElementById("gamepads");
+        thispad.padel = creategamepadelement(thispad);
+        padlistel.appendChild(thispad.padel);
+        gamepads[gamepad.index] = thispad;
     } else {
-      delete gamepads[gamepad.index];
+        gamepads[gamepad.index].padel.remove();
+        delete gamepads[gamepad.index];
     }
 }
 
@@ -219,9 +229,12 @@ const passedromfile = async(event) => {
 
 
 
-
-const loadfrombase64 = async (event) =>{
+const loadbase64button = async (event) =>{
     const index = event.target.parentElement.attributes[0].value;
+    loadfrombase64(index);
+}
+
+const loadfrombase64 = async (index) =>{
     const romref = romsdata[index];
     const romdata = Uint8Array.from(atob(romref.romdata), c => c.charCodeAt(0));
     const romdatastream = new ReadableStream({
@@ -362,11 +375,9 @@ volslider.addEventListener("input", volchangeeventhandler);
 
 
 const fileselectdiv = nesel.appendChild(getelement("div",null));
-fileselectdiv.appendChild(getelement("label","Load a rom from your device: ",[{ name:"for", val:"romselect" }]));
+fileselectdiv.appendChild(getelement("label","Load from your device: ",[{ name:"for", val:"romselect" }]));
 addfileselect( fileselectdiv ,passedromfile,[{"name":"id","val":"romselect"}]);
 
-
-nesel.appendChild(getelement("div","config stuff - pads, keyboard?"));
 
 
 
@@ -397,7 +408,7 @@ function createromelement(rom, index){
     const attrib = document.createAttribute("romindex");
     attrib.value = index;
 
-    const buttonny = addbutton(romelement, null,loadfrombase64);
+    const buttonny = addbutton(romelement, null,loadbase64button);
     buttonny.setAttributeNode(attrib);
 
 
@@ -406,7 +417,7 @@ function createromelement(rom, index){
 
 
     if(rom.link!==null){
-        romelement.appendChild(getanchorinelement("p", rom.link));
+        romelement.appendChild(getanchorinelement("p", "Web link", rom.link));
     }
 
 
@@ -450,9 +461,41 @@ await loadjsonroms( new Request("roms.json", {
 
 
 
+function createplayerselect(identifier, eventhandler, initval = 2){
+    const selectelement = getelement("select",null,[{name:"name", val:identifier }, {name:"id", val:identifier }]);
+    selectelement.appendChild( getelement("option","Unused",[{name:"value", val:"2" }]) );
+    selectelement.appendChild( getelement("option","NES Player 1",[{name:"value", val:"0" }]) );
+    selectelement.appendChild( getelement("option","NES Player 2",[{name:"value", val:"1" }]) );
+    selectelement.onchange = eventhandler;
+    selectelement.value = initval;
+    return selectelement;
+}
 
 
 
+function creategamepadelement(padref){    
+    const padelement = getelement("div",null);
+    padelement.appendChild( getelement("div", padref.gamepad.id) );
+    padelement.appendChild( createplayerselect("pad"+padref.gamepad.index,
+        (event) => {
+            padref.player = event.target.value;
+        },0));
+    return padelement;
+}
+
+
+
+
+const keyboardel = getelement("div",null);
+keyboardel.appendChild( getelement("div","Keyboard controls:") );
+keyboardel.appendChild( createplayerselect("keys",
+    (event) => {
+        keyboardplayernumber = event.target.value;
+    },0));
+document.getElementById("gamepads").appendChild(keyboardel);
+
+//these should both deselect anyone else who had chosen that, as they can't coexist.
+//or i need to build each one...
 
 
 
