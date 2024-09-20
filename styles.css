@@ -1,0 +1,128 @@
+
+/* Asterisk* = ALL elements, wherever they are */
+*,
+*::before, 
+*::after {
+    box-sizing: border-box;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    /* outline: 1px solid rgba(255, 0, 242, 0.418); */
+}
+
+
+/* :root = same as html, but higher specificity,
+         html being the root element  */
+:root {
+    font-size: 11pt; /* rem is relative to this  */
+
+}
+
+html {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: normal;
+    line-height: 1.5;
+}
+
+/* summat, summatelse = same rule for many things - can be done in functions??? */
+/* parent > directchild */
+/* ancestor anydescendant */
+/* h3.mer.mate = h3s that have both mer and mate classes */
+
+ /* body = the root element of the page under html */
+body {
+    background: var(--NES3C);
+    color: var(--NES07);
+
+    margin: 0 auto;
+
+    /* min-height: 100vh; */
+}
+
+
+h1 {
+    border-bottom: 2px solid var(--NES18);
+    margin-bottom: 2rem;
+}
+
+#maingrid {
+    display: grid;
+    grid-template-columns: calc(256px + 4rem) auto;
+    /* gap: 1rem; */
+}
+
+
+
+
+#maingrid>div {
+    height: 100vh;
+    overflow: scroll;
+    padding: 1rem;
+}
+
+#maingrid>div:first-of-type {
+    overflow: hidden;
+}
+
+#nes {
+    /* outline: 1px solid var(--NES07); */
+    border-radius: 1rem;
+    background-color: var(--NES14);
+    padding: 1rem;
+}
+
+#nes>div:nth-child(2) {
+    display: grid;
+    grid-template-columns: 20px auto 4rem;
+}
+
+#roms {
+    display: grid;
+    grid-template-columns: repeat(3, 33%);
+}
+
+@media (max-width: 1000px){
+    #roms {
+        grid-template-columns: repeat(2, 50%);
+    }
+}
+
+@media (max-width: 800px){
+    #roms {
+        grid-template-columns: auto;
+    }
+}
+
+
+
+
+#roms button {
+    width: 100%;
+    background-color: var(--NES22);
+    border: 3px solid var(--NES28);
+    border-radius: 1rem;
+}
+
+a,
+a:visited {
+    color: var(--NES33);
+}
+
+#roms>div {
+    margin: 1rem;
+    padding: 1rem;
+    background-color: var(--NES18);
+    border-radius: 1rem;
+    /* border: 1px solid black; */
+}
+
+pre,
+summary {
+    font-size: 0.6rem;
+}
+
+details {
+    overflow: scroll;
+}

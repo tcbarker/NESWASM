@@ -54,11 +54,11 @@ async function createNES(romdataarraybuffer) {
     }
 
     if(nesvars.wasm_romfileptr===undefined){
-        if(romdataarraybuffer===null){
-            return;
-        }
         nesvars.nes_framenumber = -1;
         nesvars.wasm_rombytecount = romdataarraybuffer.byteLength;
+        if(nesvars.wasm_rombytecount===undefined){
+            return;
+        }
         nesvars.wasm_romfileptr = Module._malloc(nesvars.wasm_rombytecount);
         const romview = Module.HEAPU8.subarray(nesvars.wasm_romfileptr, nesvars.wasm_romfileptr+nesvars.wasm_rombytecount);
         romview.set(new Uint8Array(romdataarraybuffer));
@@ -67,7 +67,7 @@ async function createNES(romdataarraybuffer) {
         [nesvars.wasm_screenptr, nesvars.wasm_paletteptr, nesvars.wasm_romfileptr, nesvars.wasm_rombytecount, nesvars.wasm_sramptr, nesvars.wasm_audiobufferptr, nesvars.wasm_keyboardmatrix ] );
 
         if( (nesstate&0x80000000)===0 ){
-            console.log("file error");
+            dispatchevent(nesinvalidevent);
             destroynes();
         } else {
             nesvars.nes_savesize = nesstate&~0x80000000;
@@ -94,7 +94,7 @@ function frameadvance(){
     nesvars.inputs = nesvars.getinputs();
 
     if(nesvars.wasm_romfileptr===undefined){
-        console.log("no rom file");
+        //console.log("no rom file");
         if(nesvars.nes_running!==undefined){
             runnes();
         }
@@ -171,6 +171,9 @@ async function setupaudio(create) {
         nesvars.audio.ctx = new AudioContext();
     }
 
+    if(nesvars.nes_refresh<1){
+        nesvars.nes_refresh = 1;
+    }
 
     nesvars.audio.nessamplerate = (nesvars.sizeofframesamplebuffer-0.5)*nesvars.nes_refresh;
     const samplesperframe = nesvars.audio.ctx.sampleRate/nesvars.nes_refresh;
@@ -193,21 +196,21 @@ async function setupaudio(create) {
     nesvars.audio.nesnodemessage = { 0:{}, 1:{} };
 
     if(nesvars.audio.ctx.audioWorklet===undefined){
-        const message = "audioWorklet unsupported. https issues??"
+        const message = "audioWorklet unsupported. https issues??";
+        dispatchevent(new CustomEvent("nesrunstate", { detail: message }));
         debugger;
         return;
     }
 
-
     if(nesvars.audio.node_gain===undefined){
         //create, if we can. no way to check if already done? what happens if it has???
-        await nesvars.audio.ctx.audioWorklet.addModule("nesaudio.js")
-        .then( resolved=>{}, rejected=>{
-            console.log(rejected);
+        try {
+            await nesvars.audio.ctx.audioWorklet.addModule("nesaudio.js");
+        } catch (e) {
+            console.log(e);
             return;
-        });
-    
-        
+        }
+
         nesvars.audio.node_hipass = new BiquadFilterNode(nesvars.audio.ctx);
         nesvars.audio.node_hipass.type = "highpass";
         nesvars.audio.node_hipass.frequency.value = 25;
@@ -308,30 +311,30 @@ const nesisrunningevent = new CustomEvent("nesrunstate", { detail: true });
 const nesstoppedevent = new CustomEvent("nesrunstate", { detail: false });
 const nesinvalidevent = new CustomEvent("nesrunstate", { detail: null });
 
+function dispatchevent(theevent){
+    nesvars.eventreceivers.forEach( element => {
+        element.dispatchEvent(theevent);
+    });
+}
+
 const runnes = async () => {
     if(nesvars.nes_running===undefined){
         await setupaudio(true);
         nesvars.nes_running = setInterval(frameadvance, 1000/(nesvars.nes_refresh));
         nesvars.audio.muted = false;
+        dispatchevent(nesisrunningevent);
     } else {
         clearInterval(nesvars.nes_running);
         await setupaudio(false);
         nesvars.nes_running = undefined;
         nesvars.audio.muted = true;
+        if(nesvars.wasm_romfileptr!==undefined){
+            dispatchevent(nesstoppedevent);
+        }
     }
     setgain();
-    nesvars.eventreceivers.forEach( element => {
-        if(nesvars.wasm_romfileptr===undefined){
-            element.dispatchEvent(nesinvalidevent);
-        } else {
-            if(nesvars.nes_running===undefined){
-                element.dispatchEvent(nesstoppedevent);
-            } else {
-                element.dispatchEvent(nesisrunningevent);
-            }
-        }
-    });
 }
+
 
 
 
@@ -376,15 +379,15 @@ class nes{
         return nesvars.ppumem;
     }
 
-    async loadrom(romarraybuffer){
+    loadrom(romarraybuffer){
         //todo - save data..
 
-        await createNES(romarraybuffer);
+        createNES(romarraybuffer);
     }
 
-    async runnes(event){
+    runnes(event){
         //console.log(event);
-        await runnes();
+        runnes();
     }
 
     setgain(value){

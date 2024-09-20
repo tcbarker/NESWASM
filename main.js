@@ -2,6 +2,24 @@ import touchcon from './touchcon.js'
 import nes from './nes.js'
 import nescolours from './nescolours.js'
 
+
+function gethex(fromthis){
+    let hex = fromthis.toString(16);
+    if(hex.length===1){
+        hex = "0"+hex;
+    }
+    return hex.toUpperCase();
+}
+
+for(let i = 0;i<64;i++){
+    document.documentElement.style.setProperty("--NES"+gethex(i), "#"
+        +gethex(nescolours[i*4+0])
+        +gethex(nescolours[i*4+1])
+        +gethex(nescolours[i*4+2])
+    );
+}
+
+
 const searchParams = new URLSearchParams(window.location.search);
 const debug = searchParams.has("debug");
 
@@ -42,8 +60,8 @@ function addbutton(addtoelement=null, buttontext="a button", thefunc = async (ev
     return thisbutton;
 }
 
-function addfileselect(addtoelement=null, thefunc = async (event)=>{console.log(event);} ){
-    const thisfs= getelement("input",null,[  {name:"type", val:"file"}]);
+function addfileselect(addtoelement=null, thefunc = async (event)=>{console.log(event);}, extraattribs=[] ){
+    const thisfs= getelement("input",null,[ {name:"type", val:"file"} ].concat(extraattribs) );
                                             //,{name:"multiple", val:null}]);
     thisfs.addEventListener('change', thefunc );
     if(addtoelement!==null){
@@ -66,31 +84,23 @@ function addcanvas(addtoelement=null, x, y ){
 
 
 
+const romsdata = [];
 
-
+const keyboardplayernumber = 0;
 const gamepads = {};
 const inputs = [0,0];
-
+const padconfigs = [ {name:"xbox 360 wired pad on linux", mapping:{ 0:0,3:1,8:2,9:3,12:4,13:5,14:6,15:7 }}  ];
 
 
 function checkpads(){
     for(const gamepad of navigator.getGamepads()){
         if(!gamepad) continue;
-        /*if(gamepad.index!==0){
-            continue;
-        }*/
-        const player = 0;
+        const player = gamepads[gamepad.index].player;
+        const mappingindex = gamepads[gamepad.index].mappingindex;
+        const mapping = padconfigs[mappingindex].mapping;
+        if(player===null || mapping===undefined){continue;}
         for(const [i, button] of gamepad.buttons.entries()){
-            const index = {//xbox360/linux
-                0:0,
-                3:1,
-                8:2,
-                9:3,
-                12:4,
-                13:5,
-                14:6,
-                15:7
-            }[i];
+            const index = mapping[i];
             if(index!==undefined){
                 setinputfromindex(index,button.pressed,player);
             }
@@ -101,7 +111,8 @@ function checkpads(){
     }
 }
 
-function setinput(key,pressed,player=0){
+
+function setinput(key,pressed){
     const index = {
         "x":0,//A
         "z":1,//B
@@ -124,11 +135,11 @@ function setinput(key,pressed,player=0){
     if(index===undefined){
         return false;
     }
-    setinputfromindex(index,pressed,player);
+    setinputfromindex(index,pressed,keyboardplayernumber);
     return true;
 }
 
-function setinputfromindex(index,pressed,playerno=0){
+function setinputfromindex(index,pressed,playerno){
     const bit = (1<<index);
     if(pressed===true){
         inputs[playerno] |= bit;
@@ -138,10 +149,21 @@ function setinputfromindex(index,pressed,playerno=0){
 }
 
 
+function getmappingfromgamepad(gamepad){//todo...
+    console.log(gamepad);
+    for (padconfig in padconfigs){
+        if(padconfig.name==="xbox360"){
+            return 0;
+        }
+    }
+    return 0;
+}
+
+
 function gamepadHandler(event, connected) {
     const gamepad = event.gamepad;  
     if (connected) {
-      gamepads[gamepad.index] = gamepad;
+      gamepads[gamepad.index] = { gamepad, player:0, mappingindex:getmappingfromgamepad(gamepad) };
     } else {
       delete gamepads[gamepad.index];
     }
@@ -152,9 +174,7 @@ function registercontrollers(){
     window.addEventListener(
         "keydown",
         (event) => {
-            if (event.defaultPrevented) {
-                return;
-            }
+            if (event.defaultPrevented) { return; }
             if(event.key==="Escape"){
                 nes.runnes();
                 return;
@@ -170,9 +190,7 @@ function registercontrollers(){
     window.addEventListener(
         "keyup",
         (event) => {
-            if (event.defaultPrevented) {
-                return;
-            }
+            if (event.defaultPrevented) { return; }
             if(setinput(event.key,false)){
                 if(!debug){
                     event.preventDefault();
@@ -182,22 +200,8 @@ function registercontrollers(){
         true,
     );
 
-    
-
-    window.addEventListener(
-        "gamepadconnected",
-        (e) => {
-          gamepadHandler(e, true);
-        },
-        false,
-      );
-      window.addEventListener(
-        "gamepaddisconnected",
-        (e) => {
-          gamepadHandler(e, false);
-        },
-        false,
-    );
+    window.addEventListener("gamepadconnected", (e) => { gamepadHandler(e, true); }, false );
+    window.addEventListener("gamepaddisconnected", (e) => { gamepadHandler(e, false); }, false );
 
 }
 
@@ -208,31 +212,17 @@ registercontrollers();
 
 const passedromfile = async(event) => {
     const loadfileelement = event.target;
-    await nes.loadrom(await loadfileelement.files[0].arrayBuffer());
+    nes.loadrom(await loadfileelement.files[0].arrayBuffer());
     loadfileelement.value = "";
 }
 
 
 
-let romsdata;
 
-const loadjson = async() => {
-    const request = new Request("roms.json", {
-        method: "GET",
-    });
-    try {
-        const response = await fetch(request);
-        romsdata = JSON.parse(await response.text());
-    } catch (e) {
-        console.log(e);
-    }
-}
-
-await loadjson();
 
 const loadfrombase64 = async (event) =>{
-    const romref = romsdata.roms[event.target.attributes[0].value];
-
+    const index = event.target.parentElement.attributes[0].value;
+    const romref = romsdata[index];
     const romdata = Uint8Array.from(atob(romref.romdata), c => c.charCodeAt(0));
     const romdatastream = new ReadableStream({
         start(controller) {
@@ -243,8 +233,7 @@ const loadfrombase64 = async (event) =>{
     const ds = new DecompressionStream("gzip");
     const decompstream = romdatastream.pipeThrough(ds);
     let response = new Response(decompstream);
-    const rom = await response.arrayBuffer();
-    await nes.loadrom(rom);
+    nes.loadrom( await response.arrayBuffer() );
 }
 
 
@@ -254,8 +243,7 @@ const loadfromurl = async(theurl) => {
     });
     try {
         const response = await fetch(request);
-        const rom = await new Response(response.body).arrayBuffer();
-        await nes.loadrom(rom);
+        nes.loadrom( await new Response(response.body).arrayBuffer() );
     } catch (e) {
         console.log(e);
     }
@@ -267,10 +255,9 @@ const fetchnesfile = async(event) => {
     await loadfromurl(event.target.attributes[0].value);
 }
 
-const getfromdata = async (event) => {
-    const romref = romsdata.roms[event.target.attributes[0].value];
-    const rom = allromdata.slice(romref.dataoffset,romref.dataoffset+romref.size);
-    await nes.loadrom(rom);
+const getfromdata = (event) => {
+    const romref = romsdata[event.target.attributes[0].value];
+    nes.loadrom( allromdata.slice(romref.dataoffset,romref.dataoffset+romref.size) );
 }
 
 
@@ -288,33 +275,82 @@ function getinputs(){//runs at start of every frame..
 
 
 const nesel = document.getElementById("nes");
-await touchcon.config( null, nesel );
+
+const screendiv = nesel.appendChild(getelement("div",null));
+//await touchcon.config( null, screendiv );
+const backgroundimageel = getelement("img",null,[{"name":"src","val":"bg.png"}]);
+
+//generate image from base64. todo.
+
+backgroundimageel.onload = async function() {
+    await touchcon.config( {backgroundimage:backgroundimageel}, screendiv );
+};
 
 
-addfileselect( nesel ,passedromfile);
 
-const startbutton = addbutton(nesel, "", nes.runnes);
-startbutton.style.display = "none";
+
+const pausevoldiv = nesel.appendChild(getelement("div",null));
+
+const pauseboxdiv = pausevoldiv.appendChild(getelement("div",null));
+
+const pausebutton = addbutton(pauseboxdiv, "", nes.runnes);
+pausebutton.style.display = "none";
+pausebutton.addEventListener(
+    "nesrunstate",
+    (e) => {
+        switch(e.detail){
+            default:
+                document.getElementById("status").innerText += e.detail;
+                break;
+
+            case null:
+                e.target.style.display = "none";
+                touchcon.setallowfullscreen(false);
+                document.getElementById("status").innerText += "\nInvalid iNes file, or unsupported mapper.";
+                break;
+            
+            case false:
+                e.target.style.display = "initial";
+                e.target.innerText="▶️";
+                touchcon.setallowfullscreen(false);
+                break;
+            
+            case true:
+                e.target.style.display = "initial";
+                e.target.innerText="⏸️";
+                touchcon.setallowfullscreen(true);
+                break;
+        }
+    },
+    false,
+);
+
+
 
 
 
 const volslider = getelement("input",null,[
                                     {name:"type",val:"range"},
-                                    {name:"min",val:"-4000"},
+                                    {name:"min",val:"-4001"},
                                     {name:"max",val:"1200"},
                                     {name:"value",val:"0"},
                                     {name:"name",val:"volslider"},
 ]);
-nesel.appendChild(volslider);
+pausevoldiv.appendChild(volslider);
 
-const displaydb = getelement("label","Volume (0 dB)", [{name:"for",val:"volslider"}]);
-nesel.appendChild(displaydb);
+const displaydb = getelement("label","0 dB", [{name:"for",val:"volslider"}]);
+pausevoldiv.appendChild(displaydb);
 
 
 const volchangeeventhandler = (event) => {
     //const db = 20*Math.log10(gainratio);
     const dbs = event.target.value/100;
-    displaydb.innerText = "Volume ("+(dbs>0?" +":"")+dbs.toString()+" dB)";
+    if(dbs<-40){
+        displaydb.innerText = "Mute";
+        nes.setgain(0);
+        return;
+    }
+    displaydb.innerText = (dbs>0?" +":"")+dbs.toString()+"\xA0dB";//&nbsp
     nes.setgain((10)**(dbs/20));
 };
 
@@ -324,8 +360,17 @@ volslider.addEventListener("input", volchangeeventhandler);
 
 
 
-    
-nes.configurenes(touchcon.drawNES,getinputs,[startbutton]);
+
+const fileselectdiv = nesel.appendChild(getelement("div",null));
+fileselectdiv.appendChild(getelement("label","Load a rom from your device: ",[{ name:"for", val:"romselect" }]));
+addfileselect( fileselectdiv ,passedromfile,[{"name":"id","val":"romselect"}]);
+
+
+nesel.appendChild(getelement("div","config stuff - pads, keyboard?"));
+
+
+
+nes.configurenes(touchcon.drawNES,getinputs,[pausebutton]);
 
 
 if(debug===true){
@@ -345,69 +390,69 @@ if(debug===true){
 
 
 
-startbutton.addEventListener(
-    "nesrunstate",
-    (e) => {
-        switch(e.detail){
-            case null:
-                e.target.style.display = "none";
-                touchcon.setallowfullscreen(false);
-                break;
-            
-            case false:
-                e.target.style.display = "initial";
-                e.target.innerText="Resume Emulation";
-                touchcon.setallowfullscreen(false);
-                break;
-            
-            case true:
-                e.target.style.display = "initial";
-                e.target.innerText="Pause Emulation";
-                touchcon.setallowfullscreen(true);
-                break;
-        }
-    },
-    false,
-);
-
-
-
-
-
-
-const ul = getelement("ul");
-nesel.appendChild(ul);
-
-
-
-
-romsdata.roms.forEach( (rom, index) => {
-    const li = getelement("li");
-    ul.appendChild(li);
+function createromelement(rom, index){
     
-    li.appendChild(getelement("h1",rom.name));
-    //const romloc = rom.filename.slice(0,4)==="http"?rom.filename:"/roms/"+rom.filename;
-    //const arcloc = rom.archive.slice(0,4)==="http"?rom.archive:"/roms/"+rom.archive;
+    const romelement = getelement("div");
 
-    const attrib = document.createAttribute("romname");
-    attrib.value = index;//romloc;
-    //addbutton(li, "Play in emulator",fetchnesfile).setAttributeNode(attrib);
-    addbutton(li, "Play it now!",loadfrombase64).setAttributeNode(attrib);
+    const attrib = document.createAttribute("romindex");
+    attrib.value = index;
 
-    li.appendChild(getelement("p","by "+rom.developer));
+    const buttonny = addbutton(romelement, null,loadfrombase64);
+    buttonny.setAttributeNode(attrib);
+
+
+    buttonny.appendChild(getelement("h2",rom.name));
+    buttonny.appendChild(getelement("p","by "+rom.developer));
+
+
     if(rom.link!==null){
-        li.appendChild(getanchorinelement("p", rom.link));
+        romelement.appendChild(getanchorinelement("p", rom.link));
     }
-    li.appendChild(getelement("pre","License: "+rom.license));
-    //li.appendChild(getanchorinelement("p", "Download Archive/License Information", arcloc ));
-    //li.appendChild(getanchorinelement("p", "Download .nes file", romloc));
+
+
+    const details = romelement.appendChild(getelement("details",null));
+    details.appendChild(getelement("summary","License Information"));
+    
+    details.appendChild(getelement("pre",rom.license));
+
+    return romelement;
+}
 
 
 
-});
 
 
-nesel.appendChild(getanchorinelement("p", "View License Information", "Licenses.txt" ));
+
+const loadjsonroms = async(request) => {
+    fetch(request)
+    .then( response => response.text() )
+    .then( responsetext => JSON.parse(responsetext) )
+    .then( imported => {
+        const romselement = document.getElementById("roms");
+        imported.roms.forEach( (rom ) => {
+            const index = romsdata.length;
+            romsdata.push(rom);
+            romselement.appendChild(createromelement(rom, index));
+        });
+    })
+    .catch( (e) => {
+        console.log(e);
+    });
+}
+
+
+await loadjsonroms( new Request("roms.json", {
+    method: "GET",
+}));
+
+
+
+
+
+
+
+
+
 
 
 

@@ -163,6 +163,9 @@ function drawthing (ctx, thing, colour, coords){
 
 async function createcontroller(appendto = document.body, options = null){//event will be passed, but doesn't matter.
 
+    if(options?.backgroundimage!==undefined){
+        touchcontroller.screencanv.backgroundimage = options.backgroundimage;
+    }
     touchcontroller.width = options?.width?options.width:256;
     touchcontroller.height = options?.height?options.height:240;
     touchcontroller.screenratio = options?.screenratio?options.screenratio:0.6;
@@ -231,7 +234,7 @@ async function createcontroller(appendto = document.body, options = null){//even
             }
         }
     } else {
-        touchcontroller.canvas.style.cursor = "auto";
+        touchcontroller.canvas.style.cursor = touchcontroller.allowfullscreen?"zoom-in":"auto";
         if(touchcontroller.screenLock!==null){
             await touchcontroller.screenLock.release();
             touchcontroller.screenLock = null;
@@ -284,8 +287,17 @@ async function createcontroller(appendto = document.body, options = null){//even
     touchcontroller.canvas.height = height;
 
     drawthing(touchcontroller.screencanv.ctx, "rect", "black", {x:0, y:0, w:width, h:height });
-    drawthing(touchcontroller.screencanv.ctx, "rect", "white", touchcontroller.screencanv.coords);
-  
+    
+    if(touchcontroller.screencanv.backgroundimage!==undefined){
+        touchcontroller.screencanv.ctx.drawImage(touchcontroller.screencanv.backgroundimage,
+        touchcontroller.screencanv.coords.x,
+        touchcontroller.screencanv.coords.y,
+        touchcontroller.screencanv.coords.w,
+        touchcontroller.screencanv.coords.h);
+    } else {
+        drawthing(touchcontroller.screencanv.ctx, "rect", "white", touchcontroller.screencanv.coords);
+    }
+
     if(touchcontroller.touchenabled){
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["dpad"]]);
         drawthing(touchcontroller.screencanv.ctx, "circle", "white", touchcontroller.controls[btns["abut"]]);
@@ -337,6 +349,7 @@ class touchcon{
 
     setallowfullscreen(allow){
         touchcontroller.allowfullscreen = allow;
+        touchcontroller.canvas.style.cursor = touchcontroller.allowfullscreen?"zoom-in":"auto";
     }
 
     drawNES(nescanvas){

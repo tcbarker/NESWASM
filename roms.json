@@ -2,7 +2,6 @@
     "roms": [
         {
             "license": "https://creativecommons.org/publicdomain/zero/1.0/",
-            "archive": null,
             "name": "Lawn Mower",
             "developer": "Shiru",
             "link": "https://shiru.untergrund.net/software.shtml#nes",
@@ -10,7 +9,6 @@
         },
         {
             "license": "https://creativecommons.org/publicdomain/zero/1.0/",
-            "archive": null,
             "name": "LAN Master",
             "developer": "Shiru",
             "link": "https://shiru.untergrund.net/software.shtml#nes",
@@ -18,7 +16,6 @@
         },
         {
             "license": "CC-BY",
-            "archive": null,
             "name": "Zooming Secretary",
             "developer": "PinWizz and Shiru",
             "link": "https://shiru.untergrund.net/software.shtml#nes",
@@ -26,7 +23,6 @@
         },
         {
             "license": "Copyright (c) 2011 Mathew Brenaman.  All rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice,\n   this list of conditions and the following disclaimer.\n2. Redistributions in binary form must reproduce the above copyright notice,\n   this list of conditions and the following disclaimer in the documentation\n   and/or other materials provided with the distribution.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" \nAND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\nIMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE\nARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE\nLIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR\nCONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF\nSUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS\nINTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN\nCONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)\nARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE\nPOSSIBILITY OF SUCH DAMAGE.",
-            "archive": null,
             "name": "NES15",
             "developer": "Mathew Brenaman",
             "link": "https://action53.itch.io/vol1",
@@ -34,7 +30,6 @@
         },
         {
             "license": "Copyright (c) 2004-2018 Halley's Comet Software\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions\nare met:\n1. Redistributions of source code must retain the above copyright\n   notice, this list of conditions and the following disclaimer.\n2. Redistributions in binary form must reproduce the above copyright\n   notice, this list of conditions and the following disclaimer in the\n   documentation and/or other materials provided with the distribution.\n3. The name of the author may not be used to endorse or promote products\n   derived from this software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR\nIMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES\nOF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.\nIN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,\nINCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT\nNOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,\nDATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY\nTHEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF\nTHIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
-            "archive": null,
             "name": "Escape from Pong",
             "developer": "Adam Gashlin",
             "link": "https://hcs64.com/efp.html",
@@ -42,7 +37,6 @@
         },
         {
             "license": "Copying and distribution of this file, with or without\nmodification, are permitted in any medium without royalty provided\nthe copyright notice and this notice are preserved in all source\ncode copies.  This file is offered as-is, without any warranty.",
-            "archive": "https://github.com/pinobatch/rhde-nes/archive/refs/tags/v0.07.zip",
             "name": "RHDE: Furniture Fight (32K version)",
             "developer": "Damian Yerrick",
             "link": "https://github.com/pinobatch/rhde-nes",
@@ -50,7 +44,6 @@
         },
         {
             "license": "Copyright 2011 Damian Yerrick\nCopying and distribution of this file, with or without modification,\nare permitted in any medium without royalty provided the copyright\nnotice and this notice are preserved.  This file is offered as-is,\nwithout any warranty.",
-            "archive": "https://github.com/pinobatch/zap-ruder/archive/refs/tags/v0.03a.zip",
             "name": "Zap Ruder",
             "developer": "Damian Yerrick",
             "link": "https://github.com/pinobatch/zap-ruder",
