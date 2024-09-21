@@ -51,9 +51,9 @@ function getanchorinelement(eltype, anchortext, linkaddress = null){
     return thiselement;
 }
 
-function addbutton(addtoelement=null, buttontext="a button", thefunc = async (event)=>{console.log(event);} ){
+function addbutton(addtoelement=null, buttontext="a button", thefunc = async (event)=>{console.log(event);}, capture = false ){//else bubbling
     const thisbutton= getelement("button",buttontext );
-    thisbutton.addEventListener('click', thefunc, false );//bubbling/capturing?
+    thisbutton.addEventListener('click', thefunc, capture );
     if(addtoelement!==null){
         addtoelement.appendChild(thisbutton);
     }
@@ -86,14 +86,13 @@ function addcanvas(addtoelement=null, x, y ){
 
 const romsdata = [];
 
-let keyboardplayernumber = 0;
+const keyboardinput = { value:0, player:0 };
 const gamepads = {};
-const inputs = [0,0];
-const padconfigs = {//A,B,Sel,St,U,D,L,R
-    "Microsoft X-Box 360 pad (STANDARD GAMEPAD Vendor: 045e Product: 028e)":{ 0:0,2:1,8:2,9:3,12:4,13:5,14:6,15:7 },//android
-    "045e-028e-Microsoft X-Box 360 pad":{ 0:0,3:1,8:2,9:3,12:4,13:5,14:6,15:7 },//ubuntu
-    "0c12-0005-Zeroplus PS Vibration Feedback Converter ":{ 2:0,3:1,8:2,11:3,100:4,101:5,102:6,103:7 }//ubuntu - no d pad digital. need analog conversion.
-};
+
+
+
+
+
 
 
 function checkpads(){
@@ -105,11 +104,11 @@ function checkpads(){
             }
             const index = gamepads[gamepad.index].mapping[i];
             if(index!==undefined){
-                setinputfromindex(index,button.pressed, gamepads[gamepad.index].player );
+                setinputfromindex(index, button.pressed, gamepads[gamepad.index] );
             }
         }
         for(const [i, axis] of gamepad.axes.entries()){
-            //console.log(axis);
+            //console.log(axis);//ps2 thing...
         }
     }
 }
@@ -126,8 +125,8 @@ function setinput(key,pressed){
         "ArrowLeft":6,
         "ArrowRight":7,
 
-        " ":0,//space, modern pc layout
-        "Enter":1,
+        "Enter":0,//modern pc layout
+        " ":1,//space
         "q":2,
         "e":3,
         "w":4,
@@ -138,37 +137,42 @@ function setinput(key,pressed){
     if(index===undefined){
         return false;
     }
-    setinputfromindex(index,pressed,keyboardplayernumber);
+    setinputfromindex(index,pressed,keyboardinput);
     return true;
 }
 
-function setinputfromindex(index,pressed,playerno){
-    if(playerno===null || playerno>1){
-        return;
-    }
+function setinputfromindex(index,pressed,input){
     const bit = (1<<index);
     if(pressed===true){
-        inputs[playerno] |= bit;
+        input.value |= bit;
     } else {
-        inputs[playerno] &= ~bit;
+        input.value &= ~bit;
     }
 }
 
 
-function getmappingfromgamepad(gamepad){//todo...
-    const found = padconfigs[gamepad.id];
-    if(found!==undefined){
-        return found;
+
+
+function getmappingfromgamepad(gamepadid){
+    if(gamepadid!==undefined && gamepadid!==null){
+        const jsoned = localStorage.getItem("CONFIG_"+gamepadid+"_0");
+        if(jsoned!==null){
+            return JSON.parse(jsoned);
+        }
     }
-    console.log({"unknown pad":gamepad.id});
-    return padconfigs["045e-028e-Microsoft X-Box 360 pad"];
+    return {//a few common defaults??
+            "Microsoft X-Box 360 pad (STANDARD GAMEPAD Vendor: 045e Product: 028e)":{ 0:0,2:1,8:2,9:3,12:4,13:5,14:6,15:7 },
+            "045e-028e-Microsoft X-Box 360 pad":{ 0:0,3:1,8:2,9:3,12:4,13:5,14:6,15:7 },
+            "0c12-0005-Zeroplus PS Vibration Feedback Converter ":{ 2:0,3:1,8:2,11:3,100:4,101:5,102:6,103:7 }//ubuntu - no d pad digital. need analog conversion...
+        }[gamepadid] || { 0:0,1:0,2:1,3:1, 4:0,5:1,6:2,7:3,10:0,11:1,  8:2,9:3,12:4,13:5,14:6,15:7 };
 }
 
 
 function gamepadHandler(event, connected) {
     const gamepad = event.gamepad;  
     if (connected) {
-        const thispad = { gamepad, player:0, mapping:getmappingfromgamepad(gamepad) };
+        const player = gamepad.index===1?1:0;
+        const thispad = { gamepad, player, mapping:getmappingfromgamepad(gamepad.id), value:0 };
         const padlistel = document.getElementById("gamepads");
         thispad.padel = creategamepadelement(thispad);
         padlistel.appendChild(thispad.padel);
@@ -190,7 +194,7 @@ function registercontrollers(){
                 return;
             }
             if(setinput(event.key,true)){
-                if(!debug){
+                if(keyboardinput.player<2){
                     event.preventDefault();
                 }
             }
@@ -202,7 +206,7 @@ function registercontrollers(){
         (event) => {
             if (event.defaultPrevented) { return; }
             if(setinput(event.key,false)){
-                if(!debug){
+                if(keyboardinput.player<2){
                     event.preventDefault();
                 }
             }
@@ -221,16 +225,17 @@ registercontrollers();
 
 
 const passedromfile = async(event) => {
-    const loadfileelement = event.target;
-    nes.loadrom(await loadfileelement.files[0].arrayBuffer());
-    loadfileelement.value = "";
+    const ok = await nes.loadrom(await event.target.files[0].arrayBuffer());
+    if(!ok){
+        event.target.value = "";
+    }
 }
 
 
 
 
 const loadbase64button = async (event) =>{
-    const index = event.target.parentElement.attributes[0].value;
+    const index = event.currentTarget.attributes[0].value;
     loadfrombase64(index);
 }
 
@@ -279,8 +284,18 @@ function getinputs(){//runs at start of every frame..
         screenlog(nes.cpumem[0x50],false,true);//show zelda kill streak
     }
 
+
+    const inputs = [touchcon.state,0];
+    if(keyboardinput.player<2){
+        inputs[keyboardinput.player] |= keyboardinput.value;
+    }
     checkpads();
-    return [ inputs[0] | touchcon.state, inputs[1] ];
+    for(const [key, gamepad] of Object.entries(gamepads)){
+        if(gamepad.player<2){
+            inputs[gamepad.player] |= gamepad.value;
+        }
+    }
+    return inputs;
 }
 
 
@@ -293,7 +308,7 @@ const screendiv = nesel.appendChild(getelement("div",null));
 //await touchcon.config( null, screendiv );
 const backgroundimageel = getelement("img",null,[{"name":"src","val":"bg.png"}]);
 
-//generate image from base64. todo.
+//generate image from base64? todo.
 
 backgroundimageel.onload = async function() {
     await touchcon.config( {backgroundimage:backgroundimageel}, screendiv );
@@ -340,35 +355,46 @@ pausebutton.addEventListener(
 
 
 
-
+const gain = localStorage.getItem("gain") || 0;
 
 const volslider = getelement("input",null,[
                                     {name:"type",val:"range"},
                                     {name:"min",val:"-4001"},
                                     {name:"max",val:"1200"},
-                                    {name:"value",val:"0"},
+                                    {name:"value",val:gain},
                                     {name:"name",val:"volslider"},
 ]);
 pausevoldiv.appendChild(volslider);
 
-const displaydb = getelement("label","0 dB", [{name:"for",val:"volslider"}]);
+
+
+const displaydb = getelement("label","", [{name:"for",val:"volslider"}]);
 pausevoldiv.appendChild(displaydb);
 
 
-const volchangeeventhandler = (event) => {
+function getdbtext(dbs){
+    return dbs<-40?"Mute":
+    (dbs>0?" +":"")+dbs.toString()+"\xA0dB";//&nbsp
+}
+
+function setnesgain(dbs){
+    displaydb.innerText = getdbtext(dbs);
+    nes.setgain(dbs<-40?0:(10)**(dbs/20));
     //const db = 20*Math.log10(gainratio);
-    const dbs = event.target.value/100;
-    if(dbs<-40){
-        displaydb.innerText = "Mute";
-        nes.setgain(0);
-        return;
-    }
-    displaydb.innerText = (dbs>0?" +":"")+dbs.toString()+"\xA0dB";//&nbsp
-    nes.setgain((10)**(dbs/20));
+}
+setnesgain(gain/100);
+
+const volchangeeventhandler = (event) => {
+    setnesgain(event.target.value/100);    
+};
+
+
+const volchangestore = (event) => {
+    localStorage.setItem("gain", event.target.value);
 };
 
 volslider.addEventListener("input", volchangeeventhandler);
-
+volslider.addEventListener("change", volchangestore);
 
 
 
@@ -401,6 +427,9 @@ if(debug===true){
 
 
 
+
+
+
 function createromelement(rom, index){
     
     const romelement = getelement("div");
@@ -408,7 +437,7 @@ function createromelement(rom, index){
     const attrib = document.createAttribute("romindex");
     attrib.value = index;
 
-    const buttonny = addbutton(romelement, null,loadbase64button);
+    const buttonny = addbutton(romelement, null, loadbase64button );
     buttonny.setAttributeNode(attrib);
 
 
@@ -473,13 +502,73 @@ function createplayerselect(identifier, eventhandler, initval = 2){
 
 
 
+function setnesbuttonascurrentlyheldbuttonsongamepad(nesbutton, padref){
+    for(const [key, value] of Object.entries(gamepads[padref.gamepad.index].mapping)){
+        if(value===nesbutton){
+            gamepads[padref.gamepad.index].mapping[key] = undefined;
+        }
+    }
+    let count = 0;
+    for(const [i, button] of padref.gamepad.buttons.entries()){
+        if(button.pressed){
+            count++;
+            gamepads[padref.gamepad.index].mapping[i] = nesbutton;
+        }
+    }
+    for(const [i, axis] of padref.gamepad.axes.entries()){
+        //console.log(axis);//ps2 thing...
+    }
+    return " ("+count+" gamepad buttons are now set to this NES button.)";
+}
+
+
+
+function creategamepadconfigelement(padref, padelement){
+    const configelement = getelement("div",null);
+    configelement.appendChild( getelement("div", "Button Configuration for Gamepad with "+padref.gamepad.buttons.length+" buttons.") );
+
+    ["A","B","Select","Start","Up","Down","Left","Right"].forEach( (buttonname, index) => {
+        const buttonboxel = getelement("div", null);
+        configelement.appendChild(buttonboxel);
+        const buttontext = "Hold the buttons on this gamepad that you wish to work as NES button: "+buttonname+" and click here.";
+        addbutton(buttonboxel, buttontext, (event) => {
+            event.currentTarget.innerText = buttontext+setnesbuttonascurrentlyheldbuttonsongamepad(index,padref);
+        });
+    });
+
+    addbutton(configelement,"Save", (event) => {
+        localStorage.setItem("CONFIG_"+padref.gamepad.id+"_0", JSON.stringify(padref.mapping) );
+    });
+
+    addbutton(configelement,"Close Config", (event) => {
+        padelement.getElementsByTagName("button")[0].style.display="unset";
+        configelement.remove();
+    });
+
+    addbutton(configelement,"Reset saved to default", (event) => {
+        localStorage.removeItem("CONFIG_"+padref.gamepad.id+"_0");
+        padref.mapping = getmappingfromgamepad(padref.gamepad.id);
+        padelement.getElementsByTagName("button")[0].style.display="unset";
+        configelement.remove();
+    });
+    return configelement;
+}
+
+
+
 function creategamepadelement(padref){    
     const padelement = getelement("div",null);
     padelement.appendChild( getelement("div", padref.gamepad.id) );
     padelement.appendChild( createplayerselect("pad"+padref.gamepad.index,
         (event) => {
             padref.player = event.target.value;
-        },0));
+        },padref.player));
+
+    addbutton(padelement,"Configure", (event) => {
+        event.currentTarget.style.display = "none";
+        padelement.appendChild(creategamepadconfigelement(padref, padelement));
+    } );
+
     return padelement;
 }
 
@@ -487,15 +576,13 @@ function creategamepadelement(padref){
 
 
 const keyboardel = getelement("div",null);
-keyboardel.appendChild( getelement("div","Keyboard controls:") );
+keyboardel.appendChild( getelement("div","Use Keyboard for:") );
 keyboardel.appendChild( createplayerselect("keys",
     (event) => {
-        keyboardplayernumber = event.target.value;
-    },0));
+        keyboardinput.player = event.target.value;
+    },keyboardinput.player));
 document.getElementById("gamepads").appendChild(keyboardel);
 
-//these should both deselect anyone else who had chosen that, as they can't coexist.
-//or i need to build each one...
 
 
 

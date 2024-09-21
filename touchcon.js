@@ -104,6 +104,9 @@ function getnearestbutton(touch){
 
 
 const handletouchevent = (event) =>{
+    if(!touchcontroller.allowfullscreen){
+        return;
+    }
     event.preventDefault();
     if(document.fullscreenElement!==touchcontroller.canvas){
         touchcontroller.touchenabled = true;

@@ -73,32 +73,48 @@ h1 {
     padding: 1rem;
 }
 
+#nes>div {
+    overflow: hidden;
+}
+
 #nes>div:nth-child(2) {
     display: grid;
     grid-template-columns: 20px auto 4rem;
+    font-size: 0.8rem;
 }
 
 #gamepads {
     outline: 1px solid var(--NES07);
+    background-color: var(--NES14);
     border-radius: 1rem;
     padding: 1rem;
     margin-top: 1rem;
 }
 
-#roms {
-    display: grid;
-    grid-template-columns: repeat(3, 33%);
+ul {
+    padding: 0.2rem 1rem;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.2rem 1.8rem;
+    list-style: none;
+    text-align: center;
 }
 
-@media (max-width: 1000px){
+#roms {
+    display: grid;
+    grid-template-columns: auto;
+}
+
+@media (min-width: 950px){
     #roms {
         grid-template-columns: repeat(2, 50%);
     }
 }
 
-@media (max-width: 800px){
+@media (min-width: 1300px){
     #roms {
-        grid-template-columns: auto;
+        grid-template-columns: repeat(3, 33%);
     }
 }
 
@@ -111,6 +127,7 @@ h1 {
     border: 3px solid var(--NES28);
     border-radius: 1rem;
     font-size: 1.2rem;
+    padding: 1rem;
 }
 
 a,
@@ -134,4 +151,10 @@ summary {
 
 details {
     overflow: scroll;
+}
+
+
+
+footer {
+    height: 5rem;
 }

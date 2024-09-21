@@ -74,6 +74,7 @@ async function createNES(romdataarraybuffer) {
             if(nesvars.nes_running===undefined){
                 runnes();
             }
+            return true;
         }
     }
 }
@@ -379,10 +380,10 @@ class nes{
         return nesvars.ppumem;
     }
 
-    loadrom(romarraybuffer){
+    async loadrom(romarraybuffer){
         //todo - save data..
 
-        createNES(romarraybuffer);
+        return await createNES(romarraybuffer);
     }
 
     runnes(event){
