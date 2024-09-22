@@ -46,6 +46,9 @@ class NesAudio extends AudioWorkletProcessor {
           this.queue[i] = this.queue[i+1];
         }
         this.furtheststored--;
+        if(this.furtheststored==-1){
+          this.queue = { [0]:this.empty };
+        }
       }
       return true;
     }

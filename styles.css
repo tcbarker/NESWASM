@@ -153,6 +153,59 @@ pre {
     overflow-x: scroll;
 }
 
+.gamepadconf {
+    border-top: 1px solid var(--NES07);
+    margin-top: 0.2rem;
+}
+
+.padconfig {
+    display: grid;
+    grid-template-areas:
+            ". up up . . nesselect nesstart"
+            "left left right right . nesb nesa"
+            ". down down . . . .";
+}
+
+.nesbtn,
+.nesbtn>button {
+    width: 100%;
+    height: 100%;
+    border-radius: 1rem;
+    padding: 0.5rem;
+    margin: 0.2rem;
+}
+
+.A-nes {
+    grid-area: nesa;
+}
+
+.B-nes {
+    grid-area: nesb;
+}
+
+.Left-nes {
+    grid-area: left;
+}
+
+.Right-nes {
+    grid-area: right;
+}
+
+.Up-nes {
+    grid-area: up;
+}
+
+.Down-nes {
+    grid-area: down;
+}
+
+.Start-nes {
+    grid-area: nesstart;
+}
+
+.Select-nes {
+    grid-area: nesselect;
+}
 
 
 footer {

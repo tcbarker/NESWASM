@@ -518,33 +518,53 @@ function setnesbuttonascurrentlyheldbuttonsongamepad(nesbutton, padref){
             padref.mapping[key] = undefined;
         }
     }
-    let count = 0;
     for(const [i, button] of gamepad.buttons.entries()){
         if(button.pressed){
-            count++;
             padref.mapping[i] = nesbutton;
         }
     }
     for(const [i, axis] of padref.gamepad.axes.entries()){
         //console.log(axis);//ps2 thing...
     }
-    return " ("+count+" gamepad buttons are now set to this NES button.)";
 }
 
 
 
+function getbuttonascurrentlymappedongamepad(nesbuttonname, nesbutton, padref){
+    let rtntxt = ": Nothing mapped!";
+    for(const [key, value] of Object.entries(padref.mapping)){
+        if(value===nesbutton){
+            if(rtntxt === ": Nothing mapped!"){
+                rtntxt = ": "+key;
+            } else {
+                rtntxt+=", "+key;
+            }
+        }
+    }
+    return nesbuttonname+rtntxt;
+}
+
+const buttonnames = ["A","B","Select","Start","Up","Down","Left","Right"];
+
 function creategamepadconfigelement(padref, padelement){
     const gamepad = updatepadref(padref);
     const configelement = getelement("div",null);
-    configelement.appendChild( getelement("div", "Button Configuration for Gamepad with "+gamepad.buttons.length+" buttons.") );
+    configelement.appendChild( getelement("div", "Click the NES button below that you want to set while holding the ones that you want to map to it of the "+gamepad.buttons.length+" buttons on "+gamepad.id) );
 
-    ["A","B","Select","Start","Up","Down","Left","Right"].forEach( (buttonname, index) => {
-        const buttonboxel = getelement("div", null);
-        configelement.appendChild(buttonboxel);
-        const buttontext = "Hold the buttons on this gamepad that you wish to work as NES button: "+buttonname+" and click here.";
-        addbutton(buttonboxel, buttontext, (event) => {
-            event.currentTarget.innerText = buttontext+setnesbuttonascurrentlyheldbuttonsongamepad(index,padref);
+    const nespadelement = getelement("div",null, [{name:"class", val:"padconfig"}]);
+    configelement.appendChild(nespadelement);
+
+    const configbuttons = [];
+    buttonnames.forEach( (buttonname, index) => {
+        const buttonboxel = getelement("div", null, [{name:"class", val:"nesbtn "+buttonname+"-nes"}]);
+        nespadelement.appendChild(buttonboxel);
+        const thisbtn = addbutton(buttonboxel, getbuttonascurrentlymappedongamepad(buttonname, index, padref), (event) => {
+            setnesbuttonascurrentlyheldbuttonsongamepad(index, padref);
+            configbuttons.forEach( (button,ind)=>{
+                button.innerText = getbuttonascurrentlymappedongamepad(buttonnames[ind], ind, padref);
+            } );
         });
+        configbuttons.push(thisbtn);
     });
 
     addbutton(configelement,"Save", (event) => {
@@ -569,7 +589,7 @@ function creategamepadconfigelement(padref, padelement){
 
 function creategamepadelement(padref){    
     const gamepad = updatepadref(padref);
-    const padelement = getelement("div",null);
+    const padelement = getelement("div",null, [{name:"class",val:"gamepadconf"}]);
     padelement.appendChild( getelement("div", gamepad.id) );
     padelement.appendChild( createplayerselect("pad"+gamepad.index,
         (event) => {
