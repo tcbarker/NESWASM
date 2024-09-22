@@ -160,11 +160,7 @@ function getmappingfromgamepad(gamepadid){
             return JSON.parse(jsoned);
         }
     }
-    return {//a few common defaults??
-            "Microsoft X-Box 360 pad (STANDARD GAMEPAD Vendor: 045e Product: 028e)":{ 0:0,2:1,8:2,9:3,12:4,13:5,14:6,15:7 },
-            "045e-028e-Microsoft X-Box 360 pad":{ 0:0,3:1,8:2,9:3,12:4,13:5,14:6,15:7 },
-            "0c12-0005-Zeroplus PS Vibration Feedback Converter ":{ 2:0,3:1,8:2,11:3,100:4,101:5,102:6,103:7 }//ubuntu - no d pad digital. need analog conversion...
-        }[gamepadid] || { 0:0,1:0,2:1,3:1, 4:0,5:1,6:2,7:3,10:0,11:1,  8:2,9:3,12:4,13:5,14:6,15:7 };
+    return { 0:0, 2:1, 3:1, 8:2, 9:3, 12:4,13:5,14:6,15:7,    1:0, 4:1, 5:1, 6:1, 7:1, 10:1, 11:1 };
 }
 
 
@@ -172,7 +168,7 @@ function gamepadHandler(event, connected) {
     const gamepad = event.gamepad;  
     if (connected) {
         const player = gamepad.index===1?1:0;
-        const thispad = { gamepad, player, mapping:getmappingfromgamepad(gamepad.id), value:0 };
+        const thispad = { gamepad, index:gamepad.index, player, mapping:getmappingfromgamepad(gamepad.id), value:0 };
         const padlistel = document.getElementById("gamepads");
         thispad.padel = creategamepadelement(thispad);
         padlistel.appendChild(thispad.padel);
@@ -290,9 +286,9 @@ function getinputs(){//runs at start of every frame..
         inputs[keyboardinput.player] |= keyboardinput.value;
     }
     checkpads();
-    for(const [key, gamepad] of Object.entries(gamepads)){
-        if(gamepad.player<2){
-            inputs[gamepad.player] |= gamepad.value;
+    for(const [key, padref] of Object.entries(gamepads)){
+        if(padref.player<2){
+            inputs[padref.player] |= padref.value;
         }
     }
     return inputs;
@@ -464,7 +460,7 @@ function createromelement(rom, index){
 
 
 const loadjsonroms = async(request) => {
-    fetch(request)
+    await fetch(request)
     .then( response => response.text() )
     .then( responsetext => JSON.parse(responsetext) )
     .then( imported => {
@@ -501,18 +497,29 @@ function createplayerselect(identifier, eventhandler, initval = 2){
 }
 
 
+function updatepadref(padref){
+    for(const gamepad of navigator.getGamepads()){
+        if(!gamepad) continue;
+        if(gamepad.index===padref.index){
+            padref.gamepad = gamepad;
+            return gamepad;
+        }
+    }
+    console.error("failed to find pad.");
+}
 
 function setnesbuttonascurrentlyheldbuttonsongamepad(nesbutton, padref){
-    for(const [key, value] of Object.entries(gamepads[padref.gamepad.index].mapping)){
+    const gamepad = updatepadref(padref);
+    for(const [key, value] of Object.entries(padref.mapping)){
         if(value===nesbutton){
-            gamepads[padref.gamepad.index].mapping[key] = undefined;
+            padref.mapping[key] = undefined;
         }
     }
     let count = 0;
-    for(const [i, button] of padref.gamepad.buttons.entries()){
+    for(const [i, button] of gamepad.buttons.entries()){
         if(button.pressed){
             count++;
-            gamepads[padref.gamepad.index].mapping[i] = nesbutton;
+            padref.mapping[i] = nesbutton;
         }
     }
     for(const [i, axis] of padref.gamepad.axes.entries()){
@@ -524,8 +531,9 @@ function setnesbuttonascurrentlyheldbuttonsongamepad(nesbutton, padref){
 
 
 function creategamepadconfigelement(padref, padelement){
+    const gamepad = updatepadref(padref);
     const configelement = getelement("div",null);
-    configelement.appendChild( getelement("div", "Button Configuration for Gamepad with "+padref.gamepad.buttons.length+" buttons.") );
+    configelement.appendChild( getelement("div", "Button Configuration for Gamepad with "+gamepad.buttons.length+" buttons.") );
 
     ["A","B","Select","Start","Up","Down","Left","Right"].forEach( (buttonname, index) => {
         const buttonboxel = getelement("div", null);
@@ -537,7 +545,7 @@ function creategamepadconfigelement(padref, padelement){
     });
 
     addbutton(configelement,"Save", (event) => {
-        localStorage.setItem("CONFIG_"+padref.gamepad.id+"_0", JSON.stringify(padref.mapping) );
+        localStorage.setItem("CONFIG_"+gamepad.id+"_0", JSON.stringify(padref.mapping) );
     });
 
     addbutton(configelement,"Close Config", (event) => {
@@ -546,8 +554,8 @@ function creategamepadconfigelement(padref, padelement){
     });
 
     addbutton(configelement,"Reset saved to default", (event) => {
-        localStorage.removeItem("CONFIG_"+padref.gamepad.id+"_0");
-        padref.mapping = getmappingfromgamepad(padref.gamepad.id);
+        localStorage.removeItem("CONFIG_"+gamepad.id+"_0");
+        padref.mapping = getmappingfromgamepad(gamepad.id);
         padelement.getElementsByTagName("button")[0].style.display="unset";
         configelement.remove();
     });
@@ -557,9 +565,10 @@ function creategamepadconfigelement(padref, padelement){
 
 
 function creategamepadelement(padref){    
+    const gamepad = updatepadref(padref);
     const padelement = getelement("div",null);
-    padelement.appendChild( getelement("div", padref.gamepad.id) );
-    padelement.appendChild( createplayerselect("pad"+padref.gamepad.index,
+    padelement.appendChild( getelement("div", gamepad.id) );
+    padelement.appendChild( createplayerselect("pad"+gamepad.index,
         (event) => {
             padref.player = event.target.value;
         },padref.player));
