@@ -98,13 +98,16 @@ const gamepads = {};
 function checkpads(){
     for(const gamepad of navigator.getGamepads()){
         if(!gamepad) continue;
+        gamepads[gamepad.index].value = 0;//set all false
         for(const [i, button] of gamepad.buttons.entries()){
             if(debug && button.pressed){
                 screenlog("button "+i,false,true);
             }
             const index = gamepads[gamepad.index].mapping[i];
             if(index!==undefined){
-                setinputfromindex(index, button.pressed, gamepads[gamepad.index] );
+                if(button.pressed===true){
+                    gamepads[gamepad.index].value |= (1<<index);//just set true if pressed.
+                }
             }
         }
         for(const [i, axis] of gamepad.axes.entries()){
@@ -141,7 +144,7 @@ function setinput(key,pressed){
     return true;
 }
 
-function setinputfromindex(index,pressed,input){
+function setinputfromindex(index,pressed,input){//don't use for pads. multiple buttons.
     const bit = (1<<index);
     if(pressed===true){
         input.value |= bit;
